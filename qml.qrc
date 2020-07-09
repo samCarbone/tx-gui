@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>Joystick.qml</file>
+        <file>ChannelBar.qml</file>
+        <file>ColorButton.qml</file>
+        <file>TextBoxCompare.qml</file>
+    </qresource>
+</RCC>

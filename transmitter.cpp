@@ -12,6 +12,8 @@ Transmitter::Transmitter()
     // Default ID
     joystickID = 0;
 
+    timer.start();
+
     // create a QUDP socket
     socket = new QUdpSocket(this);
     socket->bind(QHostAddress::Any, port);
@@ -138,7 +140,7 @@ bool Transmitter::sendChannels()
 //    QString newString4 = codec->toUnicode( jsonBytes );
 
     // Hard-code json
-    QString preString = "{\"snd\":\"pc\",\"dst\":\"fc\",\"typ\":\"msp\",\"rsp\":\"ack\",\"msp\":\"";
+    QString preString = "{\"snd\":\"pc\",\"dst\":\"fc\",\"typ\":\"msp\",\"rsp\":\"true\",\"ctrl\":\"true\",\"msp\":\"";
     QByteArray preData = preString.toLatin1();
     QString postString = "\"}";
     QByteArray postData = postString.toLatin1();
@@ -157,7 +159,10 @@ bool Transmitter::sendPing() {
         {"snd", "pc"},
         {"dst", "esp"},
         {"typ", "ping"},
+        {"rsp", "true"}
     };
+
+    object["ping"] = timer.elapsed();
 
     QJsonDocument jsonDoc = QJsonDocument(object);
     QByteArray jsonBytes = jsonDoc.toJson(QJsonDocument::Compact); // Compact representation
@@ -189,7 +194,7 @@ Transmitter::~Transmitter()
 
 // Note: this function should only be used for the joystick inputs
 // due to the use of different mappings for each axis
-void Transmitter::axisChanged (const int js, const int axis, const double value)
+void Transmitter::axisChanged(const int js, const int axis, const double value)
 {
     if(js != joystickID)
         return;
@@ -204,7 +209,7 @@ void Transmitter::axisChanged (const int js, const int axis, const double value)
 }
 
 
-void Transmitter::buttonChanged (const int js, const int button, const bool pressed) {
+void Transmitter::buttonChanged(const int js, const int button, const bool pressed) {
     std::cout << button << std::endl;
 
     if(js != joystickID)
@@ -294,11 +299,23 @@ void Transmitter::parsePacket(QByteArray &data) {
     if(object["dst"] != "pc") {return;}
     // If the esp is the original sender (as opposed to the jevois)
     if(object["snd"] == "esp") {
+
         // If the type is a 'mode' message
         if(object["typ"] == "mode") {
             if(object["mode"] == "pc") {setEspMode(MODE_PC);}
             else if(object["mode"] == "jv") {setEspMode(MODE_JV);}
             else {setEspMode(MODE_ERR);}
+        }
+
+//        else if(object["typ"] == "msp") {
+//        }
+
+        else if(object["typ"] == "alt") {
+            parseAltitude(object["alt"].toObject());
+        }
+
+        else if(object["typ"] == "ping") {
+            parsePing(object);
         }
     }
 }
@@ -331,3 +348,37 @@ void Transmitter::setModeFromChannelChanged(const int channel, const double valu
     }
 }
 
+void Transmitter::parseAltitude(QJsonObject alt_obj) {
+
+    if(alt_obj.contains("sigrt") && alt_obj.contains("ambrt") && alt_obj.contains("sigma")
+            && alt_obj.contains("spad") && alt_obj.contains("range") && alt_obj.contains("time")
+            && alt_obj.contains("status") )
+    {
+        RangingData_t altData;
+        altData.signal_rate = alt_obj["sigrt"].toDouble();
+        altData.ambient_rate = alt_obj["ambrt"].toDouble();
+        altData.sigma_mm = alt_obj["sigma"].toDouble();
+        altData.eff_spad_count = alt_obj["spad"].toDouble()/256; // divide by 256 for real value
+        altData.range_mm = alt_obj["range"].toInt();
+        altData.time_meas_ms = alt_obj["time"].toInt();
+        altData.status = alt_obj["status"].toInt();
+        altData.time_recv_ms = (int)timer.elapsed();
+
+//        std::cout << altData.range_mm << ", " << altData.time_meas_ms << std::endl;
+
+        emit altitudeReceived(altData);
+        emit altitudeRangeReceived(altData.time_meas_ms, altData.range_mm);
+    }
+}
+
+void Transmitter::parsePing(QJsonObject ping_obj) {
+
+    // Get the round-trip time for the ping
+    if(ping_obj.contains("ping")) {
+        pingLoopTime = timer.elapsed() - ping_obj["ping"].toInt();
+        if(pingLoopTime > 100) {
+            std::cout << "[warn] long ping time: " << pingLoopTime << std::endl;
+        }
+        emit pingReceived(pingLoopTime);
+    }
+}

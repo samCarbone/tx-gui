@@ -5,6 +5,8 @@
 #include <QObject>
 #include <QHostAddress>
 #include <array>
+#include <QElapsedTimer>
+#include "def.h"
 
 class Transmitter : public QObject
 {
@@ -30,7 +32,8 @@ public:
     void setEspMode(int newMode);
     void setDesiredEspMode(int newMode);
     Q_PROPERTY(bool espMode READ getEspMode NOTIFY espModeChanged);
-    Q_PROPERTY(bool desiredEspMode READ getDesiredEspMode NOTIFY desiredEspModeChanged)
+    Q_PROPERTY(bool desiredEspMode READ getDesiredEspMode NOTIFY desiredEspModeChanged);
+    void parseAltitude(QJsonObject alt_obj);
 
 public slots:
     void axisChanged (const int js, const int axis, const double value);
@@ -42,6 +45,9 @@ signals:
     void channelChanged(const int channel, const double value);
     void espModeChanged (const int mode);
     void desiredEspModeChanged (const int mode);
+    void altitudeReceived(RangingData_t alt);
+    void altitudeRangeReceived(int timestamp, int range);
+    void pingReceived(int pingLoopTime);
 
 private:
     std::array<double, 16> channels = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -54,7 +60,7 @@ private:
     static constexpr double MAX_CHANNEL_VALUE = 100;
     static constexpr double MIN_CHANNEL_VALUE = -100;
     static const unsigned char MSP_CHANNEL_ID = 200;
-    const QHostAddress espAddress = QHostAddress("192.168.15.34");
+    const QHostAddress espAddress = QHostAddress("192.168.15.11");
     const int port = 123;
     const int MODE_PC = 1;
     const int MODE_JV = 2;
@@ -63,6 +69,9 @@ private:
     int desiredEspMode = MODE_PC; // Start with the PC mode
     const int SET_MODE_CHANNEL = 5; // Channel which operates the esp mode
     QUdpSocket *socket;
+    QElapsedTimer timer;
+    int pingLoopTime = 0;
+    void parsePing(QJsonObject ping_obj);
 
 };
 

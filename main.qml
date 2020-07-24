@@ -2,6 +2,7 @@ import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.0
 import QtGamepad 1.12
+import QtCharts 2.12
 
 Window {
     id: root
@@ -60,6 +61,48 @@ Window {
         Joystick {id: joyRight; xLabel: "Ail"; yLabel: "Ele"}
 
     }
+
+    Item {
+        Text {
+            id: ping
+            text: "--"
+        }
+    }
+
+    ChartView {
+        title: "Scatters"
+        antialiasing: true
+        width: 400
+        height: 300
+        id: chart1
+
+        ScatterSeries {
+            id: scatter1
+            name: "Altitude"
+            axisX: valueXAxis
+            axisY: valueYAxis
+            markerSize: 2
+            borderColor: "green"
+            borderWidth: 2
+
+        }
+
+        // Define x-axis to be used with the series instead of default one
+        ValueAxis {
+            id: valueXAxis
+            min: 0
+            max: 1000
+        }
+
+        ValueAxis {
+            id: valueYAxis
+            min: 0
+            max: 2000
+        }
+
+
+    }
+
 
 //    Connections {
 //        target: QJoysticks
@@ -130,5 +173,23 @@ Window {
         function onDesiredEspModeChanged(mode) { modeBox.textLeft = getModeText(mode) }
     }
 
+    Connections {
+        target: Transmitter
+        function onAltitudeRangeReceived(timestamp, range) {
+            if(range > valueYAxis.max) {
+                valueYAxis.max = range*1.05;
+            }
+
+            valueXAxis.max = timestamp/1000;
+            valueXAxis.min = timestamp/1000 - 20;
+
+            scatter1.append(timestamp/1000, range);
+        }
+    }
+
+    Connections {
+        target: Transmitter
+        function onPingReceived(pingLoopTime) { ping.text = pingLoopTime; }
+    }
 
 }

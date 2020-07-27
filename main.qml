@@ -2,22 +2,85 @@ import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.0
 import QtGamepad 1.12
-import QtCharts 2.12
+import QtQuick.Layouts 1.12
 
-Window {
+ApplicationWindow {
+    property int currentJoystick: 0
+
     id: root
     visible: true
-    width: 640
-    height: 480
+    width: 860
+    height: 640
     title: qsTr("Joystick")
 
-    property int currentJoystick: 0
+//    background: Rectangle {
+//        gradient: Gradient {
+//            GradientStop { position: 0; color: "#ffffff" }
+//            GradientStop { position: 1; color: "#c1bbf9" }
+//        }
+//    }
+
+    TabBar {
+        id: bar
+        width: parent.width
+        anchors.left: parent.left
+        anchors.top: parent.top
+        topPadding: 5
+        leftPadding: 5
+
+        TabButton {
+            text: qsTr("Home")
+            padding: 5
+            width: implicitWidth
+            height: implicitHeight
+        }
+        TabButton {
+            text: qsTr("Discover")
+            padding: 5
+            width: implicitWidth
+            height: implicitHeight
+        }
+        TabButton {
+            text: qsTr("Activity")
+            padding: 5
+            width: implicitWidth
+            height: implicitHeight
+        }
+    }
+
+    StackLayout {
+        width: bar.width
+        anchors.horizontalCenter: bar.horizontalCenter
+        anchors.top: bar.bottom
+        anchors.bottom: bottomRow.top
+        Layout.bottomMargin: 5
+        currentIndex: bar.currentIndex
+
+        Item {
+            id: homeTab
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            FirstPage {anchors.fill: parent}
+
+        }
+
+        Item {
+            id: activityTab
+        }
+
+        Item {
+            id: discoverTab
+        }
+
+    }
+
 
     Row {
         id: bottomRow
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: 10
+        bottomPadding: 10
         spacing: 20
 
         Joystick {id: joyLeft; xLabel: "Rud"; yLabel: "Thr"}
@@ -62,46 +125,10 @@ Window {
 
     }
 
-    Item {
-        Text {
-            id: ping
-            text: "--"
-        }
-    }
-
-    ChartView {
-        title: "Scatters"
-        antialiasing: true
-        width: 400
-        height: 300
-        id: chart1
-
-        ScatterSeries {
-            id: scatter1
-            name: "Altitude"
-            axisX: valueXAxis
-            axisY: valueYAxis
-            markerSize: 2
-            borderColor: "green"
-            borderWidth: 2
-
-        }
-
-        // Define x-axis to be used with the series instead of default one
-        ValueAxis {
-            id: valueXAxis
-            min: 0
-            max: 1000
-        }
-
-        ValueAxis {
-            id: valueYAxis
-            min: 0
-            max: 2000
-        }
 
 
-    }
+
+
 
 
 //    Connections {
@@ -141,7 +168,7 @@ Window {
 
     // Periodically send the channel values over UDP
     Timer {
-        interval:50 // ms
+        interval:120 // ms
         running: txEnableButton.state == "enabled"
         repeat: true
         onTriggered: Transmitter.sendChannelsWithMode();
@@ -173,23 +200,5 @@ Window {
         function onDesiredEspModeChanged(mode) { modeBox.textLeft = getModeText(mode) }
     }
 
-    Connections {
-        target: Transmitter
-        function onAltitudeRangeReceived(timestamp, range) {
-            if(range > valueYAxis.max) {
-                valueYAxis.max = range*1.05;
-            }
-
-            valueXAxis.max = timestamp/1000;
-            valueXAxis.min = timestamp/1000 - 20;
-
-            scatter1.append(timestamp/1000, range);
-        }
-    }
-
-    Connections {
-        target: Transmitter
-        function onPingReceived(pingLoopTime) { ping.text = pingLoopTime; }
-    }
 
 }

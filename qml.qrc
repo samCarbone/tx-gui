@@ -5,5 +5,6 @@
         <file>ChannelBar.qml</file>
         <file>ColorButton.qml</file>
         <file>TextBoxCompare.qml</file>
+        <file>FirstPage.qml</file>
     </qresource>
 </RCC>

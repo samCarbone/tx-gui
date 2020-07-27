@@ -18,11 +18,17 @@ Transmitter::Transmitter()
     socket = new QUdpSocket(this);
     socket->bind(QHostAddress::Any, port);
 
+    // Altitude controller
+    alt_controller = new AltitudeController();
+
     // Connect socket readyRead() signal with the transmitter readUDP() slot
     QObject::connect(socket, &QUdpSocket::readyRead, this, &Transmitter::readUdp);
 
     // Connect channelChanged() signal with the  setModeFromChannelChanged() slot
     QObject::connect(this, &Transmitter::channelChanged, this, &Transmitter::setModeFromChannelChanged);
+
+    // Connect transmitter altitudeReceived signal with the altitude controller altitudeReceived slot
+    QObject::connect(this, &Transmitter::altitudeReceived, alt_controller, &AltitudeController::altitudeReceived);
 }
 
 //Transmitter::Transmitter(int ID)
@@ -70,13 +76,21 @@ bool Transmitter::sendChannelsWithMode()
     if(espMode != desiredEspMode)
         success &= sendEspMode(true);
 
-    if(desiredEspMode == MODE_PC)
-        success &= sendChannels();
+    if(desiredEspMode == MODE_PC) {
+        updateControllerChannels();
+        if(controllerActive) {
+            success &= sendChannels(controller_channels, socket, espAddress, port);
+        }
+        else {
+            success &= sendChannels(channels, socket, espAddress, port);
+        }
+
+    }
 
     return success;
 }
 
-bool Transmitter::sendChannels()
+bool Transmitter::sendChannels(const std::array<double, 16> &channels, QUdpSocket* socket, const QHostAddress &toAddress, const int &toPort)
 {
     QByteArray Data;
     unsigned char message_len = 2*channels.size(); // Could use a static cast to char to make sure that only
@@ -147,7 +161,7 @@ bool Transmitter::sendChannels()
     QByteArray allData = QByteArray();
     allData.append(preData); allData.append(Data); allData.append(postData);
 
-    return socket->writeDatagram(allData, espAddress, port) != -1;
+    return socket->writeDatagram(allData, toAddress, toPort) != -1;
 
 }
 
@@ -187,6 +201,7 @@ int Transmitter::toTxRange(double value)
 Transmitter::~Transmitter()
 {
 //    socket->disconnectFromHost();
+      closeFiles();
 }
 
 
@@ -210,7 +225,6 @@ void Transmitter::axisChanged(const int js, const int axis, const double value)
 
 
 void Transmitter::buttonChanged(const int js, const int button, const bool pressed) {
-    std::cout << button << std::endl;
 
     if(js != joystickID)
         return;
@@ -360,14 +374,22 @@ void Transmitter::parseAltitude(QJsonObject alt_obj) {
         altData.sigma_mm = alt_obj["sigma"].toDouble();
         altData.eff_spad_count = alt_obj["spad"].toDouble()/256; // divide by 256 for real value
         altData.range_mm = alt_obj["range"].toInt();
-        altData.time_meas_ms = alt_obj["time"].toInt();
+        altData.time_esp_ms = alt_obj["time"].toInt();
         altData.status = alt_obj["status"].toInt();
         altData.time_recv_ms = (int)timer.elapsed();
 
 //        std::cout << altData.range_mm << ", " << altData.time_meas_ms << std::endl;
 
         emit altitudeReceived(altData);
-        emit altitudeRangeReceived(altData.time_meas_ms, altData.range_mm);
+        emit altitudeRangeReceived(altData.time_esp_ms, altData.range_mm);
+
+        if(record) {
+            // header
+            // time_esp_ms,time_recv_ms,range_mm,sigma_mm,signal_rate,ambient_rate,eff_spad_count,status
+            file_alt_meas << altData.time_esp_ms << "," << altData.time_recv_ms << "," << altData.range_mm << ","
+                          << altData.sigma_mm << "," << altData.signal_rate << "," << altData.ambient_rate << ","
+                          << altData.eff_spad_count << "," << altData.status << std::endl;
+        }
     }
 }
 
@@ -382,3 +404,53 @@ void Transmitter::parsePing(QJsonObject ping_obj) {
         emit pingReceived(pingLoopTime);
     }
 }
+
+bool Transmitter::openFiles() {
+    if (file_alt_meas.is_open())
+        return false;
+    std::string name_alt_meas = fileDirectory + "/" + prefix_alt_meas + suffix + format;
+    file_alt_meas.open(name_alt_meas, std::ios::out | std::ios::app); // Append the file contents to prevent overwrite
+    if (file_alt_meas.is_open()) {
+        file_alt_meas << std::endl << header_alt_meas << std::endl;
+        record = true;
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
+void Transmitter::closeFiles() {
+    file_alt_meas.close();
+    record = false;
+}
+
+void Transmitter::setSuffix(QString suffix_in) {
+    suffix = suffix_in.toStdString();
+}
+
+std::string Transmitter::getSuffix() {
+    return suffix;
+}
+
+void Transmitter::setFileDirectory(QString directory) {
+    fileDirectory = directory.toStdString();
+}
+
+void Transmitter::updateControllerChannels() {
+
+    AltState_t current_alt_state = alt_controller->getForwardState(timer.elapsed()+pingLoopTime, true, 100); // Propagate state forward in time
+    AltState_t target_alt_state;
+    target_alt_state.P.fill(0);
+    target_alt_state.time_pc = 0;
+    target_alt_state.time_esp = 0;
+    target_alt_state.z = 500;
+    target_alt_state.z_dot = 0;
+    double throttle = alt_controller->LQR(target_alt_state, current_alt_state);
+    controller_channels = channels;
+    controller_channels[2] = throttle;
+
+    emit altitudeForwardEstimate(current_alt_state.time_esp, current_alt_state.z, current_alt_state.z_dot);
+}
+
+

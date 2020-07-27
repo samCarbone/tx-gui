@@ -2,6 +2,7 @@
 #define DEF_H
 
 #include <QObject>
+#include <eigen/Eigen/Dense>
 
 typedef struct {
     double signal_rate; // MCPS
@@ -9,11 +10,21 @@ typedef struct {
     double sigma_mm; // mm
     double eff_spad_count;
     int range_mm; // mm
-    int time_meas_ms; // ms, time on arduino when measurement was conducted
+    int time_esp_ms; // ms, time on arduino when measurement was conducted
                    // only valid on a system with 32-bit ints, otherwise overflow will occur
     int status; //
     int time_recv_ms; // ms, since start of system timer
 } RangingData_t;
+
+typedef struct {
+    double z;
+    double z_dot;
+    int time_esp;
+    int time_pc;
+    Eigen::Matrix<double, 2, 2> P;
+    bool valid;
+
+} AltState_t;
 
 // Range status defines copied from ST VL53L1X api
 #define	 VL53L1_RANGESTATUS_RANGE_VALID				0           /*!<The Range is valid. */

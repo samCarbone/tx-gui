@@ -6,7 +6,10 @@
 #include <QHostAddress>
 #include <array>
 #include <QElapsedTimer>
+#include <fstream>
+#include <string>
 #include "def.h"
+#include "altitudecontroller.h"
 
 class Transmitter : public QObject
 {
@@ -22,7 +25,7 @@ public:
     void setChannelValue(int channel, double value);
 //    bool connectToHost(QString address="192.168.15.34", quint16 port=123);
     static int toTxRange(double value);
-    Q_INVOKABLE bool sendChannels();
+    static bool sendChannels(const std::array<double, 16> &channels, QUdpSocket* socket, const QHostAddress &toAddress, const int &toPort);
     Q_INVOKABLE bool sendEspMode(bool rsp);
     Q_INVOKABLE bool sendChannelsWithMode();
     Q_INVOKABLE bool sendPing();
@@ -34,6 +37,13 @@ public:
     Q_PROPERTY(bool espMode READ getEspMode NOTIFY espModeChanged);
     Q_PROPERTY(bool desiredEspMode READ getDesiredEspMode NOTIFY desiredEspModeChanged);
     void parseAltitude(QJsonObject alt_obj);
+    Q_INVOKABLE bool openFiles();
+    Q_INVOKABLE void closeFiles();
+    Q_INVOKABLE void setSuffix(QString suffix_in);
+    Q_INVOKABLE std::string getSuffix();
+    Q_INVOKABLE void setFileDirectory(QString directory);
+
+    AltitudeController* alt_controller;
 
 public slots:
     void axisChanged (const int js, const int axis, const double value);
@@ -47,10 +57,12 @@ signals:
     void desiredEspModeChanged (const int mode);
     void altitudeReceived(RangingData_t alt);
     void altitudeRangeReceived(int timestamp, int range);
+    void altitudeForwardEstimate(int timestamp, double range, double velocity);
     void pingReceived(int pingLoopTime);
 
 private:
     std::array<double, 16> channels = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    std::array<double, 16> controller_channels = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     // chnl = multiplier*joy + offset
     std::array<double, 16> channelMultipliers = {100, 100, 100, 100, 200, 200, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100};
     std::array<double, 16> channelOffsets = {0, 0, 0, 0, -100, -100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -72,6 +84,18 @@ private:
     QElapsedTimer timer;
     int pingLoopTime = 0;
     void parsePing(QJsonObject ping_obj);
+
+
+    std::ofstream file_alt_meas;
+    bool record = false;
+    std::string header_alt_meas = "time_esp_ms,time_recv_ms,range_mm,sigma_mm,signal_rate,ambient_rate,eff_spad_count,status";
+    std::string prefix_alt_meas = "alt_meas_";
+    std::string format = ".txt";
+    std::string suffix = "temp";
+    std::string fileDirectory = "";
+
+    void updateControllerChannels();
+    bool controllerActive = false;
 
 };
 

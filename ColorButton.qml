@@ -18,6 +18,7 @@ Button {
     property string textDisabled: qsTr("Enable")
     property string colorEnabled: "seagreen"
     property string colorDisabled: "tomato"
+//    property string colorInactive: "lightgrey"
 
     contentItem: Text {
         id: label
@@ -49,10 +50,17 @@ Button {
             name: "disabled"
             PropertyChanges { target: button; text: textDisabled}
             PropertyChanges { target: back; color: button.colorDisabled}
+        },
+        State {
+            name: "inactive"
+            PropertyChanges { target: button; text: textDisabled}
+            PropertyChanges { target: back; opacity: 0.5; color: button.colorDisabled} //color: button.colorInactive}
         }
-
     ]
 
-    onClicked: state = (state == "disabled"? "enabled" : "disabled")
-
+    onClicked: {
+        if(state != "inactive") {
+            state = (state == "disabled"? "enabled" : "disabled")
+        }
+    }
 }

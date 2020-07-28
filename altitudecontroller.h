@@ -1,48 +1,54 @@
 #ifndef ALTITUDECONTROLLER_H
 #define ALTITUDECONTROLLER_H
 
-#include <QObject>
 #include <fstream>
-#include "def.h"
 #include <eigen/Eigen/Dense>
+#include <string>
+#include <iostream>
+#include <math.h>
+#include "def.h"
 
-class AltitudeController : public QObject
+class AltitudeController
 {
-    Q_OBJECT
 public:
-    explicit AltitudeController(QObject *parent = nullptr);
-    AltState_t getState();
-    AltState_t getForwardState(int time_pc, bool limit=false, int limit_ms=100);
-    double LQR(AltState_t target_state, AltState_t current_state);
-    Q_INVOKABLE int getAltitudeEstimate();
+    // Methods
+    AltitudeController();
+    ~AltitudeController();
+    void resetState();
+    void resetIntegral();
+    void addEstState();
+    void addTempEstState();
+    void setTarget();
+    double getControl();
+//    CtrlState_t getControlState();
+//    CtrlState_t getControlTempState();
 
-    Q_INVOKABLE bool openFiles();
-    Q_INVOKABLE void closeFiles();
-    Q_INVOKABLE void setSuffix(QString suffix_in);
-    Q_INVOKABLE std::string getSuffix();
-    Q_INVOKABLE void setFileDirectory(QString directory);
+    // Attributes
 
-public slots:
-    void altitudeReceived(RangingData_t alt);
-
-signals:
+    // File save methods
+    bool openFiles();
+    void closeFiles();
+    void setSuffix(std::string suffix_in);
+    std::string getSuffix();
+    void setFileDirectory(std::string directory);
+    std::string getFileDirectory();
 
 private:
-    bool state_set = false;
-    RangingData_t prev_meas;
-    int time_esp;
-    int time_pc;
-    Eigen::Matrix<double, 2, 1> x; // [z (mm), z_dot (mm/s)]
-    Eigen::Matrix<double, 2, 2> P;
-    double sigma_v = 100; // mm/s, process uncertainty in velocity
+    // Methods
 
-    std::ofstream file_alt_est;
-    bool record = false;
-    std::string header_alt_est = "time_esp_ms,time_pc_ms,z,z_dot,P_11,P_12,P_21,P_22,Delta_t_s,range_mm,sigma_mm,sigma_v";
-    std::string prefix_alt_est = "alt_est_";
-    std::string format = ".txt";
+    // Attributes
+    bool validState = false;
+    Eigen::Matrix<double, 3, 1> x; // [z (mm), z_dot (mm/ms), z_int (mm.s)]
+
+    // File save attributes
+    std::ofstream file_alt_ctrl;
+    bool filesOpen = false;
+    const std::string header_alt_ctrl = "time_esp_ms,time_pc_ms,z,z_dot,P_11,P_12,P_21,P_22,Delta_t_s,range_mm,sigma_mm,sigma_v";
+    const std::string prefix_alt_ctrl = "alt_ctrl_";
+    const std::string format = ".txt";
     std::string suffix = "temp";
     std::string fileDirectory = "";
+
 };
 
 #endif // ALTITUDECONTROLLER_H

@@ -60,7 +60,7 @@ Button {
 
     onClicked: {
         if(state != "inactive") {
-            state = (state == "disabled"? "enabled" : "disabled")
+            state = (state === "disabled" ? "enabled" : "disabled")
         }
     }
 }

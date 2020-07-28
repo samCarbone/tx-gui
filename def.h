@@ -10,17 +10,17 @@ typedef struct {
     double sigma_mm; // mm
     double eff_spad_count;
     int range_mm; // mm
-    int time_esp_ms; // ms, time on arduino when measurement was conducted
+    int timeEsp_ms; // ms, time on arduino when measurement was conducted
                    // only valid on a system with 32-bit ints, otherwise overflow will occur
     int status; //
-    int time_recv_ms; // ms, since start of system timer
+    int timePc_ms; // ms, since start of system timer
 } RangingData_t;
 
 typedef struct {
     double z;
     double z_dot;
-    int time_esp;
-    int time_pc;
+    int timeEsp_ms;
+    int timePc_ms;
     Eigen::Matrix<double, 2, 2> P;
     bool valid;
 

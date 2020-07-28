@@ -13,13 +13,6 @@ ApplicationWindow {
     height: 640
     title: qsTr("Joystick")
 
-//    background: Rectangle {
-//        gradient: Gradient {
-//            GradientStop { position: 0; color: "#ffffff" }
-//            GradientStop { position: 1; color: "#c1bbf9" }
-//        }
-//    }
-
     TabBar {
         id: bar
         width: parent.width
@@ -108,18 +101,26 @@ ApplicationWindow {
                 textEnabled: qsTr("Disable Tx")
                 textDisabled: qsTr("Enable Tx")
                 anchors.horizontalCenter: parent.horizontalCenter
+
+                onStateChanged: {
+                    if(txEnableButton.state === "enabled") {
+                        Transmitter.txTransmit = true;
+                    }
+                    else if(txEnableButton.state === "disabled") {
+                        Transmitter.txTransmit = false;
+                    }
+                }
             }
 
             TextBoxCompare {
                 id: modeBox
                 textLeft: getModeText(Transmitter.desiredEspMode)
-                textRight: getModeText(Transmitter.espMode)
+                textRight: getModeText(Transmitter.currentEspMode)
                 textErr: getModeText(0)
                 anchors.horizontalCenter: parent.horizontalCenter
             }
 
         }
-
 
         Joystick {id: joyRight; xLabel: "Ail"; yLabel: "Ele"}
 
@@ -151,36 +152,36 @@ ApplicationWindow {
 
 
     function updateAxes() {
-        joyLeft.valueX = Math.round(Transmitter.getChannelValue(3))
-        joyLeft.valueY = Math.round(Transmitter.getChannelValue(2))
-        joyRight.valueX = Math.round(Transmitter.getChannelValue(0))
-        joyRight.valueY = Math.round(Transmitter.getChannelValue(1))
-        chA.value = Math.round(Transmitter.getChannelValue(4))
-        chB.value = Math.round(Transmitter.getChannelValue(5))
-        chC.value = Math.round(Transmitter.getChannelValue(6))
-        chD.value = Math.round(Transmitter.getChannelValue(7))
+        joyLeft.valueX = Math.round(Transmitter.getJoyChannelValue(3))
+        joyLeft.valueY = Math.round(Transmitter.getJoyChannelValue(2))
+        joyRight.valueX = Math.round(Transmitter.getJoyChannelValue(0))
+        joyRight.valueY = Math.round(Transmitter.getJoyChannelValue(1))
+        chA.value = Math.round(Transmitter.getJoyChannelValue(4))
+        chB.value = Math.round(Transmitter.getJoyChannelValue(5))
+        chC.value = Math.round(Transmitter.getJoyChannelValue(6))
+        chD.value = Math.round(Transmitter.getJoyChannelValue(7))
     }
 
     Connections {
         target: Transmitter
-        function onChannelChanged(axis, value) { updateAxes() }
+        function onJoyChannelChanged(axis, value) { updateAxes() }
     }
 
-    // Periodically send the channel values over UDP
-    Timer {
-        interval:120 // ms
-        running: txEnableButton.state == "enabled"
-        repeat: true
-        onTriggered: Transmitter.sendChannelsWithMode();
-    }
+//    // Periodically send the channel values over UDP
+//    Timer {
+//        interval:120 // ms
+//        running: txEnableButton.state == "enabled"
+//        repeat: true
+//        onTriggered: Transmitter.sendChannelsWithMode();
+//    }
 
-    // Periodically send a ping to the esp
-    Timer {
-        interval: 501 // ms
-        running: true
-        repeat: true
-        onTriggered: Transmitter.sendPing();
-    }
+//    // Periodically send a ping to the esp
+//    Timer {
+//        interval: 501 // ms
+//        running: true
+//        repeat: true
+//        onTriggered: Transmitter.sendPing(true);
+//    }
 
     function getModeText(mode) {
         var resp = "err";

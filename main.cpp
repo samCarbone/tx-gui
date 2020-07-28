@@ -4,8 +4,6 @@
 #include <QQmlApplicationEngine>
 #include <QJoysticks.h>
 #include <transmitter.h>
-#include <altitudecontroller.h>
-// #include <QObject.h>
 #include <QQuickStyle>
 
 #ifdef Q_OS_WIN
@@ -32,9 +30,9 @@ int main(int argc, char *argv[])
     Transmitter* tx = new Transmitter();
 
     // Connect joystick axisChanged signal with the transmitter axisChanged slot
-    QObject::connect(joyInstance, &QJoysticks::axisChanged, tx, &Transmitter::axisChanged);
+    QObject::connect(joyInstance, &QJoysticks::axisChanged, tx, &Transmitter::joystickAxisChanged);
     // Connect joystick buttonChanged signal with the transmitter buttonChanged slot
-    QObject::connect(joyInstance, &QJoysticks::buttonChanged, tx, &Transmitter::buttonChanged);
+    QObject::connect(joyInstance, &QJoysticks::buttonChanged, tx, &Transmitter::joystickButtonChanged);
 
     /* Disable the virtual joystick */
     // joyInstance->setVirtualJoystickRange (1);
@@ -46,7 +44,6 @@ int main(int argc, char *argv[])
      */
     engine.rootContext()->setContextProperty("QJoysticks", joyInstance);
     engine.rootContext()->setContextProperty("Transmitter", tx);
-    engine.rootContext()->setContextProperty("AltitudeController", tx->alt_controller);
 
     QQuickStyle::setStyle("Default");
 

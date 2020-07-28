@@ -17,28 +17,28 @@ Item {
         anchors.left: parent.left
         height: parent.height
         width: parent.width/2
-        id: chart1
+        id: chartAltitude
 
         ScatterSeries {
-            id: scatter1
-            name: "Altitude"
-            axisX: valueXAxis
-            axisY: valueYAxis
-            markerSize: 2
-            borderColor: "green"
-            color: "green"
-            borderWidth: 2
+            id: scatterRangeMeas
+            name: "Alt Meas"
+            axisX: xAxisAlt
+            axisY: yAxisAlt
+            markerSize: 4
+            borderColor: "black"
+            color: "darkgreen"
+            borderWidth: 1
             useOpenGL: true
             property int numPoints: 0
 
         }
 
         ScatterSeries {
-            id: scatter2
-            name: "Altitude Est"
-            axisX: valueXAxis
-            axisY: valueYAxis
-            markerSize: 2
+            id: scatterAltEst
+            name: "Alt Est"
+            axisX: xAxisAlt
+            axisY: yAxisAlt
+            markerSize: 3
             borderColor: "red"
             color: "red"
             borderWidth: 1
@@ -48,11 +48,11 @@ Item {
         }
 
         ScatterSeries {
-            id: scatter3
-            name: "Altitude Fwd Est"
-            axisX: valueXAxis
-            axisY: valueYAxis
-            markerSize: 2
+            id: scatterAltPropEst
+            name: "Alt Prop Est"
+            axisX: xAxisAlt
+            axisY: yAxisAlt
+            markerSize: 3
             borderColor: "blue"
             color: "blue"
             borderWidth: 1
@@ -63,13 +63,13 @@ Item {
 
         // Define x-axis to be used with the series instead of default one
         ValueAxis {
-            id: valueXAxis
+            id: xAxisAlt
             min: 0
             max: 1000
         }
 
         ValueAxis {
-            id: valueYAxis
+            id: yAxisAlt
             min: 0
             max: 2000
         }
@@ -86,12 +86,26 @@ Item {
 
         ScatterSeries {
             id: scatterVelEst
-            name: "Velocity"
+            name: "Vel Est "
+            axisX: xAxisVelocity
+            axisY: yAxisVelocity
+            markerSize: 3
+            borderColor: "red"
+            color: "red"
+            borderWidth: 1
+            useOpenGL: true
+            property int numPoints: 0
+
+        }
+
+        ScatterSeries {
+            id: scatterVelPropEst
+            name: "Vel Prop Est"
             axisX: xAxisVelocity
             axisY: yAxisVelocity
             markerSize: 4
-            borderColor: "black"
-            color: "green"
+            borderColor: "blue"
+            color: "blue"
             borderWidth: 1
             useOpenGL: true
             property int numPoints: 0
@@ -107,8 +121,8 @@ Item {
 
         ValueAxis {
             id: yAxisVelocity
-            min: -8000
-            max: 8000
+            min: -5
+            max: 5
         }
     }
 
@@ -206,8 +220,7 @@ Item {
                 onEditingFinished: {
                     if(isValidSuffix(suffixInput.text)) {
                         recordButton.state = "disabled"
-                        Transmitter.setSuffix(suffixInput.text.toString())
-                        AltitudeController.setSuffix(suffixInput.text.toString())
+                        Transmitter.suffix = suffixInput.text.toString();
                     } else {
                         recordButton.state = "inactive";
                     }
@@ -238,16 +251,14 @@ Item {
 
             onStateChanged: {
                 if(state == "enabled") {
-                    Transmitter.setFileDirectory(saveFolderDialog.cleanPath)
-                    AltitudeController.setFileDirectory(saveFolderDialog.cleanPath)
-                    if(!(Transmitter.openFiles() && AltitudeController.openFiles())) {
+                    Transmitter.fileDirectory = saveFolderDialog.cleanPath;
+                    if(!Transmitter.openFiles()) {
                         console.log("error opening files")
                     }
 
                 }
                 else if(state == "disabled") {
                     Transmitter.closeFiles();
-                    AltitudeController.closeFiles();
                 }
             }
 
@@ -297,67 +308,111 @@ Item {
 
     Connections {
         target: Transmitter
-        function onAltitudeRangeReceived(timestamp, range) {
-            if(range > valueYAxis.max) {
-                valueYAxis.max = range*1.05;
+        function onAltRangeReceived(timeEsp_ms, range) {
+            if(range > yAxisAlt.max) {
+                yAxisAlt.max = range*1.05;
+            }
+            if(range < yAxisAlt.min) {
+                yAxisAlt.min = range*1.05;
             }
 
-            valueXAxis.max = timestamp/1000;
-            valueXAxis.min = timestamp/1000 - 20;
+            xAxisAlt.max = timeEsp_ms/1000.0;
+            xAxisAlt.min = timeEsp_ms/1000.0 - 20;
 
-            scatter1.append(timestamp/1000, range);
-            scatter1.numPoints += 1;
+            scatterRangeMeas.append(timeEsp_ms/1000, range);
+            scatterRangeMeas.numPoints += 1;
 
-            var alt_est = AltitudeController.getAltitudeEstimate();
-            scatter2.append(timestamp/1000, alt_est);
-            scatter2.numPoints += 1;
-
-            if(scatter1.numPoints > 1000) {
-                scatter1.remove(0);
-                scatter1.numPoints -= 1;
+            if(scatterRangeMeas.numPoints > 500) {
+                scatterRangeMeas.remove(0);
+                scatterRangeMeas.numPoints -= 1;
             }
-            if(scatter2.numPoints > 1000) {
-                scatter2.remove(0);
-                scatter2.numPoints -= 1;
-            }
+
         }
     }
 
     Connections {
         target: Transmitter
-        function onAltitudeForwardEstimate(timestamp, range, velocity) {
-
-            scatter3.append(timestamp/1000, range);
-            scatter3.numPoints += 1;
-
-            if(velocity > yAxisVelocity.max) {
-                yAxisVelocity.max = velocity*1.05;
+        function onAltStateEstimate(timeEsp_ms, z, z_dot) {
+            // Convert frame of reference
+            var range = -z;
+            var range_dot = -z_dot;
+            if(range > yAxisAlt.max) {
+                yAxisAlt.max = range*1.05;
             }
-            if(velocity < yAxisVelocity.min) {
-                yAxisVelocity.min = velocity*1.05;
-            }
-            xAxisVelocity.max = timestamp/1000;
-            xAxisVelocity.min = timestamp/1000 - 20;
-
-            if(timestamp/1000 > valueXAxis.max) {
-                valueXAxis.max = timestamp/1000;
-                valueXAxis.min = timestamp/1000 - 20;
+            if(range < yAxisAlt.min) {
+                yAxisAlt.min = range*1.05;
             }
 
-            scatterVelEst.append(timestamp/1000, velocity);
+            if(range_dot > yAxisVelocity.max) {
+                yAxisVelocity.max = range_dot*1.05;
+            }
+            if(range_dot < yAxisVelocity.min) {
+                yAxisVelocity.min = range_dot*1.05;
+            }
+
+            xAxisAlt.max = timeEsp_ms/1000.0;
+            xAxisAlt.min = timeEsp_ms/1000.0 - 20;
+            xAxisVelocity.max = timeEsp_ms/1000.0;
+            xAxisVelocity.min = timeEsp_ms/1000.0 - 20;
+
+            scatterAltEst.append(timeEsp_ms/1000, range);
+            scatterAltEst.numPoints += 1;
+            scatterVelEst.append(timeEsp_ms/1000, range_dot);
             scatterVelEst.numPoints += 1;
 
-            if(scatter3.numPoints > 1000) {
-                scatter3.remove(0);
-                scatter3.numPoints -= 1;
+            if(scatterAltEst.numPoints > 500) {
+                scatterAltEst.remove(0);
+                scatterAltEst.numPoints -= 1;
             }
-
-            if(scatterVelEst.numPoints > 1000) {
+            if(scatterVelEst.numPoints > 500) {
                 scatterVelEst.remove(0);
                 scatterVelEst.numPoints -= 1;
             }
-        }
 
+        }
+    }
+
+
+    Connections {
+        target: Transmitter
+        function onAltPropStateEstimate(timeEsp_ms, z, z_dot) {
+            // Convert frame of reference
+            var range = -z;
+            var range_dot = -z_dot;
+            if(range > yAxisAlt.max) {
+                yAxisAlt.max = range*1.05;
+            }
+            if(range < yAxisAlt.min) {
+                yAxisAlt.min = range*1.05;
+            }
+
+            if(range_dot > yAxisVelocity.max) {
+                yAxisVelocity.max = range*1.05;
+            }
+            if(range < yAxisVelocity.min) {
+                yAxisVelocity.min = range*1.05;
+            }
+
+            xAxisAlt.max = timeEsp_ms/1000.0;
+            xAxisAlt.min = timeEsp_ms/1000.0 - 20;
+            xAxisVelocity.max = timeEsp_ms/1000.0;
+            xAxisVelocity.min = timeEsp_ms/1000.0 - 20;
+
+            scatterAltPropEst.append(timeEsp_ms/1000, range);
+            scatterAltPropEst.numPoints += 1;
+            scatterVelPropEst.append(timeEsp_ms/1000, range);
+            scatterVelPropEst.numPoints += 1;
+
+            if(scatterAltPropEst.numPoints > 500) {
+                scatterAltPropEst.remove(0);
+                scatterAltPropEst.numPoints -= 1;
+            }
+            if(scatterVelPropEst.numPoints > 500) {
+                scatterVelPropEst.remove(0);
+                scatterVelPropEst.numPoints -= 1;
+            }
+
+        }
     }
 
     Connections {

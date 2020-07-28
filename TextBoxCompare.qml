@@ -4,7 +4,7 @@ Item {
 
     property alias textLeft: modeLeft.text
     property alias textRight: modeRight.text
-    property string textErr: "err" //
+    property string textErr: "err"
     property string colorGood: "seagreen"
     property string colorBad: "tomato"
 

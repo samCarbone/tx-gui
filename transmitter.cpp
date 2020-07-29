@@ -146,10 +146,18 @@ int Transmitter::getDesiredEspMode()
 void Transmitter::setModeFromChannel(const int channel, const double value)
 {
     if(channel == SET_MODE_CHANNEL) {
-        if(value > 50)
-            setDesiredEspMode(MODE_JV);
-        else
-            setDesiredEspMode(MODE_PC);
+        if(!controllerStandby) {
+            if(value > 50)
+                setDesiredEspMode(MODE_JV);
+            else
+                setDesiredEspMode(MODE_PC);
+        }
+        else {
+            if(value > 50)
+                setControllerActive(true);
+            else
+                setControllerActive(false);
+        }
     }
 }
 
@@ -163,17 +171,41 @@ void Transmitter::setTransmit(const bool enabled)
     txTransmit = enabled;
 }
 
+bool Transmitter::getControllerStandby()
+{
+    return controllerStandby;
+}
+
+void Transmitter::setControllerStandby(const bool standby)
+{
+    controllerStandby = standby;
+    if(standby == true) {
+        setDesiredEspMode(MODE_PC);
+    }
+    else {
+        setControllerActive(false);
+    }
+}
+
+bool Transmitter::getControllerActive()
+{
+    return controllerActive;
+}
+
+void Transmitter::setControllerActive(const bool ctrlActv)
+{
+    controllerActive = ctrlActv;
+    emit controllerActiveChanged(ctrlActv);
+}
+
 // *********************************************************
 // Comms
 // *********************************************************
 
 void Transmitter::sendTimerDone()
 {
-
-    if(txTransmit) {
-        sendChannelsWithMode();
-    }
-
+    // Note: can check txTransmit here.
+    sendChannelsWithMode();
 }
 
 void Transmitter::pingTimerDone()
@@ -183,14 +215,29 @@ void Transmitter::pingTimerDone()
 
 bool Transmitter::sendChannelsWithMode()
 {
-    bool success = true;
-    if(currentEspMode != desiredEspMode)
-        success &= sendEspMode(desiredEspMode, true);
+    bool success = false;
 
-    if(desiredEspMode == MODE_PC) {
-        success &= sendChannels(joyChannels, false);
+    if(txTransmit) {
+        success = true;
+
+        if(currentEspMode != desiredEspMode)
+            success &= sendEspMode(desiredEspMode, true);
+
+        if(desiredEspMode == MODE_PC) {
+            // Calculate propagated state
+            AltState_t propAltState = altEstimator->getPropagatedStateEstimate_safe(timerPc.elapsed()+pingLoopTime, PING_TIMEOUT);
+
+            success &= sendChannels(joyChannels, false);
+            double chnThr = joyChannels.at(2); double chnEle = joyChannels.at(1);
+            double chnAil = joyChannels.at(0); double chnRud = joyChannels.at(3);
+
+            // header
+            // "time_esp_ms,time_esp_prop,Delta_t_prop_ms,z_prop,z_dot_prop,chnThr,chnEle,chnAil,chnRud"
+            file_log << altEstimator->getCurrentTimeEsp_ms() << "," << propAltState.timeEsp_ms << "," << propAltState.timeEsp_ms-altEstimator->getCurrentTimeEsp_ms() << ","
+                     << propAltState.z << "," << propAltState.z_dot << "," << chnThr << "," << chnEle << "," << chnAil << "," << chnRud << std::endl;
+            emit altPropStateEstimate(propAltState.timeEsp_ms, propAltState.z, propAltState.z_dot);
+        }
     }
-
     return success;
 }
 
@@ -379,7 +426,7 @@ void Transmitter::parseAltitude(QJsonObject alt_obj)
         AltState_t estimatedState = altEstimator->getStateEstimate();
 
         // Update controller
-//        if(controllerIsActive) {
+//        if(controllerActive) {
 //            altController->addEstState(estimatedState)
 //        }
 
@@ -405,16 +452,28 @@ void Transmitter::parsePing(QJsonObject ping_obj)
 bool Transmitter::openFiles()
 {
 
-    bool status = true;
+    if (file_log.is_open())
+        return false;
+    std::string name_log = fileDirectory + "/" + prefix_log + suffix + format;
+    file_log.open(name_log, std::ios::out | std::ios::app); // Append the file contents to prevent overwrite
+    bool status = file_log.is_open();
     status &= altEstimator->openFiles();
-//    status &= altController->openFiles();
+    //    status &= altController->openFiles();
+
+    if (file_log.is_open()) {
+        file_log << std::endl << header_log << std::endl;
+        filesOpen = true;
+    }
+
     return status;
 }
 
 void Transmitter::closeFiles()
 {
+    file_log.close();
     altEstimator->closeFiles();
 //    altController->closeFiles();
+    filesOpen = false;
 }
 
 void Transmitter::setSuffix(QString suffix_in)

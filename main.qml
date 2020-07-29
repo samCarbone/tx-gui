@@ -91,8 +91,8 @@ ApplicationWindow {
 
                 ChannelBar { id: chA; name: "Arm"}
                 ChannelBar { id: chB; name: "Mod"}
-                ChannelBar { id: chC; name: "Ch3"}
-                ChannelBar { id: chD; name: "Ch4"}
+                ChannelBar { id: chC; name: "Ch7"}
+                ChannelBar { id: chD; name: "Ch8"}
 
             }
 
@@ -120,9 +120,70 @@ ApplicationWindow {
                 anchors.horizontalCenter: parent.horizontalCenter
             }
 
+
         }
 
         Joystick {id: joyRight; xLabel: "Ail"; yLabel: "Ele"}
+
+        Grid {
+            columns: 1
+            id: controllerGrid
+            spacing: 2
+
+            horizontalItemAlignment: Grid.AlignHCenter
+            verticalItemAlignment: Grid.AlignVCenter
+
+            CheckBox {
+                width: implicitWidth
+                height: implicitHeight
+                id: checkboxCtrl
+                checked: false
+                indicator.width: 20
+                indicator.height: 20
+                text: qsTr("Standby Alt Controller")
+
+                onToggled: {
+                    Transmitter.controllerStandby = checked;
+                }
+            }
+
+            Item {
+                width: textActiveCtrl.width + rectActiveCtrl.width + 5
+                height: rectActiveCtrl.height
+
+                Text {
+                    id: textActiveCtrl
+                    text: "Alt Controller"
+                    width: contentWidth + 16
+                    height: contentHeight
+                    leftPadding: 5
+                }
+
+                Rectangle {
+                    // Green if active, red if inactive
+                    id: rectActiveCtrl
+                    state: "disabled"
+                    height: textActiveCtrl.height*1.2
+                    width: height
+                    radius: 1
+                    anchors.right: textActiveCtrl.left
+                    anchors.verticalCenter: textActiveCtrl.verticalCenter
+
+                    states: [
+                        State {
+                            name: "enabled"
+                            PropertyChanges { target: rectActiveCtrl; color: "seagreen"}
+                        },
+                        State {
+                            name: "disabled"
+                            PropertyChanges { target: rectActiveCtrl; color: "tomato"}
+                        }
+                    ]
+                }
+
+            }
+
+        }
 
     }
 
@@ -201,5 +262,9 @@ ApplicationWindow {
         function onDesiredEspModeChanged(mode) { modeBox.textLeft = getModeText(mode) }
     }
 
+    Connections {
+        target: Transmitter
+        function onControllerActiveChanged(isActive) { rectActiveCtrl.state = isActive ? "enabled" : "disabled" }
+    }
 
 }

@@ -387,10 +387,10 @@ Item {
             }
 
             if(range_dot > yAxisVelocity.max) {
-                yAxisVelocity.max = range*1.05;
+                yAxisVelocity.max = range_dot*1.05;
             }
-            if(range < yAxisVelocity.min) {
-                yAxisVelocity.min = range*1.05;
+            if(range_dot < yAxisVelocity.min) {
+                yAxisVelocity.min = range_dot*1.05;
             }
 
             xAxisAlt.max = timeEsp_ms/1000.0;
@@ -400,7 +400,7 @@ Item {
 
             scatterAltPropEst.append(timeEsp_ms/1000, range);
             scatterAltPropEst.numPoints += 1;
-            scatterVelPropEst.append(timeEsp_ms/1000, range);
+            scatterVelPropEst.append(timeEsp_ms/1000, range_dot);
             scatterVelPropEst.numPoints += 1;
 
             if(scatterAltPropEst.numPoints > 500) {

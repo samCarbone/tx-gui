@@ -43,6 +43,12 @@ public:
     bool getTransmit(); //
     void setTransmit(const bool enabled); //
     Q_PROPERTY(bool txTransmit READ getTransmit WRITE setTransmit);
+    bool getControllerStandby();
+    void setControllerStandby(const bool standby);
+    Q_PROPERTY(bool controllerStandby READ getControllerStandby WRITE setControllerStandby);
+    bool getControllerActive();
+    Q_PROPERTY(bool controllerActive READ getControllerActive NOTIFY controllerActiveChanged);
+
     // Comms
     Q_INVOKABLE bool sendChannelsWithMode(); //
     Q_INVOKABLE bool sendPing(const bool response=true); //
@@ -70,8 +76,9 @@ signals:
     void joyChannelChanged(const int channel, const double value); //
     void controllerChannelChanged(const int channel, const double value);
     // Mode
-    void espModeChanged (const int mode); //
-    void desiredEspModeChanged (const int mode); //
+    void espModeChanged(const int mode); //
+    void desiredEspModeChanged(const int mode); //
+    void controllerActiveChanged(const bool ctrlActv);
     // Comms
     void pingReceived(int pingLoopTime); //
     // State
@@ -104,10 +111,13 @@ private:
     int currentEspMode;
     int desiredEspMode;
     bool txTransmit = false;
+    bool controllerStandby = false;
+    bool controllerActive = false;
     const int SET_MODE_CHANNEL = 5; // Channel which operates the esp mode
     void updateCurrentEspMode(const int newMode); //
     void setDesiredEspMode(const int newMode); //
     void setModeFromChannel(const int channel, const double value); //
+    void setControllerActive(const bool ctrlActv);
 
     // Comms
     QUdpSocket *socket;
@@ -129,16 +139,15 @@ private:
 
     // Control system
     std::array<double, 4> controllerChannels = {0, 0, 0, 0};
-    bool controllerIsActive = false;
 //    AltitudeController* altController;
     AltitudeEstimator* altEstimator;
     // void updateControllerChannels(); // TODO: change
 
     // Files
-    std::ofstream file_alt_meas;
+    std::ofstream file_log;
     bool filesOpen = false;
-    std::string header_log = "";
-    std::string prefix_log = "";
+    std::string header_log = "time_esp_ms,time_esp_prop,Delta_t_prop_ms,z_prop,z_dot_prop,chnThr,chnEle,chnAil,chnRud";
+    std::string prefix_log = "alt_prop_ctrl_";
     std::string format = ".txt";
     std::string suffix = "temp";
     std::string fileDirectory = "";

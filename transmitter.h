@@ -19,7 +19,7 @@
 #include <math.h>
 #include "def.h"
 #include "altitudeestimator.h"
-//#include "altitudecontroller.h"
+#include "altitudecontroller.h"
 
 class Transmitter : public QObject
 {
@@ -55,9 +55,9 @@ public:
     // Files
     Q_INVOKABLE bool openFiles(); //
     Q_INVOKABLE void closeFiles(); //
-    void setSuffix(QString suffix_in); //
-    QString getSuffix(); //
-    Q_PROPERTY(QString suffix READ getSuffix() WRITE setSuffix);
+    void setFileSuffix(QString suffix_in); //
+    QString getFileSuffix(); //
+    Q_PROPERTY(QString suffix READ getFileSuffix() WRITE setFileSuffix);
     void setFileDirectory(QString directory); //
     QString getFileDirectory(); //
     Q_PROPERTY(QString fileDirectory READ getFileDirectory() WRITE setFileDirectory);
@@ -103,6 +103,7 @@ private:
     static constexpr unsigned char MSP_CHANNEL_ID = 200;
     void setJoyChannelValue(const int channel, double value); //
     static int channelToTxRange(double value); //
+    double saturate(double channelValue); //
 
     // Mode
     const int MODE_PC = 1;
@@ -139,9 +140,8 @@ private:
 
     // Control system
     std::array<double, 4> controllerChannels = {0, 0, 0, 0};
-//    AltitudeController* altController;
+    AltitudeController* altController;
     AltitudeEstimator* altEstimator;
-    // void updateControllerChannels(); // TODO: change
 
     // Files
     std::ofstream file_log;

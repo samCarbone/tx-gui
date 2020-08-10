@@ -22,7 +22,7 @@ Transmitter::Transmitter()
     QObject::connect(socket, &QUdpSocket::readyRead, this, &Transmitter::readUDP);
 
     // Altitude controller
-//    altController = new AltitudeController();
+    altController = new AltitudeController();
     altEstimator = new AltitudeEstimator();
 
     // Initialise modes
@@ -38,6 +38,11 @@ Transmitter::~Transmitter()
 {
 //    socket->disconnectFromHost();
       closeFiles();
+      delete sendTimer;
+      delete pingTimer;
+      delete socket;
+      delete altController;
+      delete altEstimator;
 }
 
 // *********************************************************
@@ -115,6 +120,17 @@ int Transmitter::channelToTxRange(double value)
     }
 
     return round(value*6 + 1500); // Scaled from (-100, 100) to (900, 2100)
+}
+
+double Transmitter::saturate(double channelValue)
+{
+    if (channelValue > MAX_CHANNEL_VALUE) {
+        channelValue = MAX_CHANNEL_VALUE;
+    }
+    else if (channelValue < MIN_CHANNEL_VALUE) {
+        channelValue = MIN_CHANNEL_VALUE;
+    }
+    return channelValue;
 }
 
 // *********************************************************
@@ -195,6 +211,11 @@ bool Transmitter::getControllerActive()
 void Transmitter::setControllerActive(const bool ctrlActv)
 {
     controllerActive = ctrlActv;
+    altController->resetState();
+
+    // Make a better way of setting this
+    AltTarget_t targetTemp; targetTemp.z = -0.5; targetTemp.z_dot = 0;
+    altController->setTarget(targetTemp);
     emit controllerActiveChanged(ctrlActv);
 }
 
@@ -224,17 +245,34 @@ bool Transmitter::sendChannelsWithMode()
             success &= sendEspMode(desiredEspMode, true);
 
         if(desiredEspMode == MODE_PC) {
+            double chnThr, chnEle, chnAil, chnRud;
             // Calculate propagated state
             AltState_t propAltState = altEstimator->getPropagatedStateEstimate_safe(timerPc.elapsed()+pingLoopTime, PING_TIMEOUT);
 
-            success &= sendChannels(joyChannels, false);
-            double chnThr = joyChannels.at(2); double chnEle = joyChannels.at(1);
-            double chnAil = joyChannels.at(0); double chnRud = joyChannels.at(3);
+            if(controllerActive) {
 
-            // header
-            // "time_esp_ms,time_esp_prop,Delta_t_prop_ms,z_prop,z_dot_prop,chnThr,chnEle,chnAil,chnRud"
-            file_log << altEstimator->getCurrentTimeEsp_ms() << "," << propAltState.timeEsp_ms << "," << propAltState.timeEsp_ms-altEstimator->getCurrentTimeEsp_ms() << ","
-                     << propAltState.z << "," << propAltState.z_dot << "," << chnThr << "," << chnEle << "," << chnAil << "," << chnRud << std::endl;
+                controllerChannels.at(2) = saturate(altController->getControlTempState(propAltState));
+
+                std::array<double, 16> mixedChannels = joyChannels;
+                mixedChannels.at(2) = controllerChannels.at(2);
+                success &= sendChannels(mixedChannels, false);
+                emit controllerChannelChanged(2, mixedChannels.at(2));
+
+                chnThr = mixedChannels.at(2); chnEle = mixedChannels.at(1);
+                chnAil = mixedChannels.at(0); chnRud = mixedChannels.at(3);
+            }
+            else {
+                success &= sendChannels(joyChannels, false);
+                chnThr = joyChannels.at(2); chnEle = joyChannels.at(1);
+                chnAil = joyChannels.at(0); chnRud = joyChannels.at(3);
+            }
+
+            if(filesOpen) {
+                // header
+                // "time_esp_ms,time_esp_prop,Delta_t_prop_ms,z_prop,z_dot_prop,chnThr,chnEle,chnAil,chnRud"
+                file_log << altEstimator->getCurrentTimeEsp_ms() << "," << propAltState.timeEsp_ms << "," << propAltState.timeEsp_ms-altEstimator->getCurrentTimeEsp_ms() << ","
+                         << propAltState.z << "," << propAltState.z_dot << "," << chnThr << "," << chnEle << "," << chnAil << "," << chnRud << std::endl;
+            }
             emit altPropStateEstimate(propAltState.timeEsp_ms, propAltState.z, propAltState.z_dot);
         }
     }
@@ -426,9 +464,9 @@ void Transmitter::parseAltitude(QJsonObject alt_obj)
         AltState_t estimatedState = altEstimator->getStateEstimate();
 
         // Update controller
-//        if(controllerActive) {
-//            altController->addEstState(estimatedState)
-//        }
+        if(controllerActive) {
+            altController->addEstState(estimatedState);
+        }
 
         emit altRangeReceived(altData.timeEsp_ms, altData.range_mm);
         emit altStateEstimate(estimatedState.timeEsp_ms, estimatedState.z, estimatedState.z_dot);
@@ -449,6 +487,10 @@ void Transmitter::parsePing(QJsonObject ping_obj)
     }
 }
 
+// *********************************************************
+// Files
+// *********************************************************
+
 bool Transmitter::openFiles()
 {
 
@@ -458,7 +500,7 @@ bool Transmitter::openFiles()
     file_log.open(name_log, std::ios::out | std::ios::app); // Append the file contents to prevent overwrite
     bool status = file_log.is_open();
     status &= altEstimator->openFiles();
-    //    status &= altController->openFiles();
+    status &= altController->openFiles();
 
     if (file_log.is_open()) {
         file_log << std::endl << header_log << std::endl;
@@ -472,18 +514,18 @@ void Transmitter::closeFiles()
 {
     file_log.close();
     altEstimator->closeFiles();
-//    altController->closeFiles();
+    altController->closeFiles();
     filesOpen = false;
 }
 
-void Transmitter::setSuffix(QString suffix_in)
+void Transmitter::setFileSuffix(QString suffix_in)
 {
     suffix = suffix_in.toStdString();
-    altEstimator->setSuffix(suffix);
-//    altController->setSuffix(suffix);
+    altEstimator->setFileSuffix(suffix);
+    altController->setFileSuffix(suffix);
 }
 
-QString Transmitter::getSuffix()
+QString Transmitter::getFileSuffix()
 {
     QString newSuffix = QString();
     newSuffix.fromStdString(suffix);
@@ -494,7 +536,7 @@ void Transmitter::setFileDirectory(QString directory)
 {
     fileDirectory = directory.toStdString();
     altEstimator->setFileDirectory(fileDirectory);
-//    altController->setFileDirectory(fileDirectory);
+    altController->setFileDirectory(fileDirectory);
 }
 
 QString Transmitter::getFileDirectory()
@@ -503,21 +545,5 @@ QString Transmitter::getFileDirectory()
     newStr.fromStdString(fileDirectory);
     return newStr;
 }
-
-//void Transmitter::updateControllerChannels() {
-
-//    AltState_t current_alt_state = alt_controller->getForwardState(timer.elapsed()+pingLoopTime, true, 100); // Propagate state forward in time
-//    AltState_t target_alt_state;
-//    target_alt_state.P.fill(0);
-//    target_alt_state.time_pc = 0;
-//    target_alt_state.time_esp = 0;
-//    target_alt_state.z = 500;
-//    target_alt_state.z_dot = 0;
-//    double throttle = alt_controller->LQR(target_alt_state, current_alt_state);
-//    controller_channels = channels;
-//    controller_channels[2] = throttle;
-
-//    emit altitudeForwardEstimate(current_alt_state.time_esp, current_alt_state.z, current_alt_state.z_dot);
-//}
 
 

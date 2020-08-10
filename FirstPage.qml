@@ -71,7 +71,7 @@ Item {
         ValueAxis {
             id: yAxisAlt
             min: 0
-            max: 2000
+            max: 2
         }
     }
 
@@ -309,6 +309,7 @@ Item {
     Connections {
         target: Transmitter
         function onAltRangeReceived(timeEsp_ms, range) {
+            range = range/1000;
             if(range > yAxisAlt.max) {
                 yAxisAlt.max = range*1.05;
             }

@@ -10,6 +10,13 @@ Item {
     property int valueX: 0
     property int valueY: 0
 
+    // Secondary channel values
+    property int secondaryValueX: 0
+    property int secondaryValueY: 0
+
+    // If an addition point is displayed
+    property bool secondary: false
+
     // Width of the point circle
     property alias circleWidth: canvas.circleWidth
     property alias xLabel: horizAxisLabel.text
@@ -20,6 +27,14 @@ Item {
     }
 
     onValueYChanged: {
+        canvas.requestPaint();
+    }
+
+    onSecondaryValueXChanged: {
+        canvas.requestPaint();
+    }
+
+    onSecondaryValueYChanged: {
         canvas.requestPaint();
     }
 
@@ -55,6 +70,20 @@ Item {
                 ctx.lineTo(canvas.width, canvas.height/2)
                 ctx.stroke()
 
+                // Draw secondary channel circle
+                if(root.secondary) {
+                    ctx.fillStyle = "seagreen"
+                    ctx.strokeStyle = "darkgrey"
+                    ctx.beginPath()
+                    var pxlX2 = root.secondaryValueX/100*canvas.width/2 + canvas.width/2
+                    var pxlY2 = canvas.height/2 - root.secondaryValueY/100*canvas.height/2
+                    ctx.ellipse(pxlX2-circleWidth/2-1, pxlY2-circleWidth/2-1, circleWidth+1, circleWidth+1)
+                    ctx.fill()
+                    ctx.fillStyle = "black"
+                    ctx.strokeStyle = "black"
+                }
+
+                // Draw primary channel dot
                 ctx.beginPath()
                 var pxlX = root.valueX/100*canvas.width/2 + canvas.width/2
                 var pxlY = canvas.height/2 - root.valueY/100*canvas.height/2

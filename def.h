@@ -26,6 +26,11 @@ typedef struct {
 
 } AltState_t;
 
+typedef struct {
+    double z;
+    double z_dot;
+} AltTarget_t;
+
 // Range status defines copied from ST VL53L1X api
 #define	 VL53L1_RANGESTATUS_RANGE_VALID				0           /*!<The Range is valid. */
 #define	 VL53L1_RANGESTATUS_SIGMA_FAIL				1           /*!<Sigma Fail. */

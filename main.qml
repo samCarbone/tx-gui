@@ -76,7 +76,7 @@ ApplicationWindow {
         bottomPadding: 10
         spacing: 20
 
-        Joystick {id: joyLeft; xLabel: "Rud"; yLabel: "Thr"}
+        Joystick {id: joyLeft; xLabel: "Rud"; yLabel: "Thr"; secondary: rectActiveCtrl.state == "enabled";}
 
         Column {
 
@@ -226,6 +226,14 @@ ApplicationWindow {
     Connections {
         target: Transmitter
         function onJoyChannelChanged(axis, value) { updateAxes() }
+    }
+
+    Connections {
+        target: Transmitter
+        function onControllerChannelChanged(axis, value) {
+
+            if(axis === 2) { joyLeft.secondaryValueY = Math.round(value); }
+        }
     }
 
 //    // Periodically send the channel values over UDP

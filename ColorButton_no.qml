@@ -58,9 +58,4 @@ Button {
         }
     ]
 
-    onClicked: {
-        if(state != "inactive") {
-            state = (state === "disabled" ? "enabled" : "disabled")
-        }
-    }
 }

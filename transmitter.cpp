@@ -163,16 +163,34 @@ void Transmitter::setModeFromChannel(const int channel, const double value)
 {
     if(channel == SET_MODE_CHANNEL) {
         if(!controllerStandby) {
-            if(value > 50)
+            if(value > 50 && armed) {
                 setDesiredEspMode(MODE_JV);
-            else
+                setDesiredJvController(JV_CTRL_TRUE);
+            }
+            else {
                 setDesiredEspMode(MODE_PC);
+                setDesiredJvController(JV_CTRL_FALSE);
+                setDesiredJvLanding(JV_LAND_FALSE);
+            }
+
         }
         else {
             if(value > 50)
                 setControllerActive(true);
             else
                 setControllerActive(false);
+        }
+    }
+
+    else if(channel == SET_ARM_CHANNEL) {
+        if(value > 50) {
+            armed = true;
+        }
+        else {
+            armed = false;
+            setDesiredEspMode(MODE_PC);
+            setDesiredJvController(JV_CTRL_FALSE);
+            setDesiredJvLanding(JV_LAND_FALSE);
         }
     }
 }
@@ -197,6 +215,8 @@ void Transmitter::setControllerStandby(const bool standby)
     controllerStandby = standby;
     if(standby == true) {
         setDesiredEspMode(MODE_PC);
+        setDesiredJvController(JV_CTRL_FALSE);
+        setDesiredJvLanding(JV_LAND_FALSE);
     }
     else {
         setControllerActive(false);
@@ -219,6 +239,32 @@ void Transmitter::setControllerActive(const bool ctrlActv)
     emit controllerActiveChanged(ctrlActv);
 }
 
+void Transmitter::updateCurrentJvController(const int newMode)
+{
+    current_jvController = newMode;
+    emit jvControllerChanged(current_jvController);
+}
+
+void Transmitter::setDesiredJvController(const int newMode)
+{
+    desired_jvController = newMode;
+    emit desiredJvControllerChanged(desired_jvController);
+
+}
+
+void Transmitter::updateCurrentJvLanding(const int newMode)
+{
+    current_jvLanding = newMode;
+    emit jvLandingChanged(current_jvLanding);
+}
+
+void Transmitter::setDesiredJvLanding(const int newMode)
+{
+    desired_jvLanding = newMode;
+    desiredJvLandingChanged(desired_jvLanding);
+}
+
+
 // *********************************************************
 // Comms
 // *********************************************************
@@ -231,7 +277,9 @@ void Transmitter::sendTimerDone()
 
 void Transmitter::pingTimerDone()
 {
-    sendPing(true);
+    if(txTransmit) {
+        sendPing(true);
+    }
 }
 
 bool Transmitter::sendChannelsWithMode()
@@ -246,20 +294,32 @@ bool Transmitter::sendChannelsWithMode()
 
         if(desiredEspMode == MODE_PC) {
             double chnThr, chnEle, chnAil, chnRud;
+
+            if(controllerStandby) {
             // Calculate propagated state
-            AltState_t propAltState = altEstimator->getPropagatedStateEstimate_safe(timerPc.elapsed()+pingLoopTime, PING_TIMEOUT);
+                AltState_t propAltState = altEstimator->getPropagatedStateEstimate_safe(timerPc.elapsed()+pingLoopTime, PING_TIMEOUT);
 
-            if(controllerActive) {
+                if(controllerActive) {
 
-                controllerChannels.at(2) = saturate(altController->getControlTempState(propAltState));
+                    controllerChannels.at(2) = saturate(altController->getControlTempState(propAltState));
 
-                std::array<double, 16> mixedChannels = joyChannels;
-                mixedChannels.at(2) = controllerChannels.at(2);
-                success &= sendChannels(mixedChannels, false);
-                emit controllerChannelChanged(2, mixedChannels.at(2));
+                    std::array<double, 16> mixedChannels = joyChannels;
+                    mixedChannels.at(2) = controllerChannels.at(2);
+                    success &= sendChannels(mixedChannels, false);
+                    emit controllerChannelChanged(2, mixedChannels.at(2));
 
-                chnThr = mixedChannels.at(2); chnEle = mixedChannels.at(1);
-                chnAil = mixedChannels.at(0); chnRud = mixedChannels.at(3);
+                    chnThr = mixedChannels.at(2); chnEle = mixedChannels.at(1);
+                    chnAil = mixedChannels.at(0); chnRud = mixedChannels.at(3);
+                }
+
+                if(filesOpen) {
+                    // header
+                    // "time_esp_ms,time_esp_prop,Delta_t_prop_ms,z_prop,z_dot_prop,chnThr,chnEle,chnAil,chnRud"
+                    file_log << altEstimator->getCurrentTimeEsp_ms() << "," << propAltState.timeEsp_ms << "," << propAltState.timeEsp_ms-altEstimator->getCurrentTimeEsp_ms() << ","
+                             << propAltState.z << "," << propAltState.z_dot << "," << chnThr << "," << chnEle << "," << chnAil << "," << chnRud << std::endl;
+                }
+                emit altPropStateEstimate(propAltState.timeEsp_ms, propAltState.z, propAltState.z_dot);
+
             }
             else {
                 success &= sendChannels(joyChannels, false);
@@ -267,14 +327,17 @@ bool Transmitter::sendChannelsWithMode()
                 chnAil = joyChannels.at(0); chnRud = joyChannels.at(3);
             }
 
-            if(filesOpen) {
-                // header
-                // "time_esp_ms,time_esp_prop,Delta_t_prop_ms,z_prop,z_dot_prop,chnThr,chnEle,chnAil,chnRud"
-                file_log << altEstimator->getCurrentTimeEsp_ms() << "," << propAltState.timeEsp_ms << "," << propAltState.timeEsp_ms-altEstimator->getCurrentTimeEsp_ms() << ","
-                         << propAltState.z << "," << propAltState.z_dot << "," << chnThr << "," << chnEle << "," << chnAil << "," << chnRud << std::endl;
-            }
-            emit altPropStateEstimate(propAltState.timeEsp_ms, propAltState.z, propAltState.z_dot);
+
         }
+
+        if(current_jvController != desired_jvController) {
+            success &= sendJvController(desired_jvController, true);
+        }
+
+        if(current_jvLanding != desired_jvLanding) {
+            success &= sendJvLanding(desired_jvLanding, true);
+        }
+
     }
     return success;
 }
@@ -360,7 +423,7 @@ bool Transmitter::sendEspMode(const int mode, const bool response)
     else if(mode == MODE_PC)
         modeStr = "pc";
     else {
-        std::cout << "[warn] cannot send invalid esp mode: " << desiredEspMode << std::endl;
+        std::cout << "[warn] cannot send invalid esp mode: " << mode << std::endl;
         return false;
     }
 
@@ -371,6 +434,82 @@ bool Transmitter::sendEspMode(const int mode, const bool response)
         {"typ", "mode"},
         {"mode", modeStr},
         {"rsp", rspStr},
+    };
+
+    QJsonDocument jsonDoc = QJsonDocument(object);
+    QByteArray jsonBytes = jsonDoc.toJson(QJsonDocument::Compact); // Compact representation
+    return socket->writeDatagram(jsonBytes, IP_ADDR_ESP, PORT_ESP) != -1;
+
+}
+
+bool Transmitter::sendJvController(const int mode, const bool response)
+{
+
+    QString rspStr = response ? "true" : "false";
+
+    int modeInt = 0;
+    if(mode == JV_CTRL_TRUE)
+        modeInt = JV_CTRL_TRUE;
+    else if(mode == JV_CTRL_FALSE)
+        modeInt = JV_CTRL_FALSE;
+    else {
+        std::cout << "[warn] cannot send invalid jv controller mode: " << mode << std::endl;
+        return false;
+    }
+
+    // Construct JSON object
+    QJsonObject object {
+        {"snd", "pc"},
+        {"dst", "jv"},
+        {"typ", "mode"},
+        {"mode", modeInt},
+        {"rsp", rspStr},
+    };
+
+    QJsonDocument jsonDoc = QJsonDocument(object);
+    QByteArray jsonBytes = jsonDoc.toJson(QJsonDocument::Compact); // Compact representation
+    return socket->writeDatagram(jsonBytes, IP_ADDR_ESP, PORT_ESP) != -1;
+
+}
+
+bool Transmitter::sendJvLanding(const int mode, const bool response)
+{
+
+    QString rspStr = response ? "true" : "false";
+
+    int modeInt = 0;
+    if(mode == JV_CTRL_TRUE)
+        modeInt = JV_CTRL_TRUE;
+    else if(mode == JV_CTRL_FALSE)
+        modeInt = JV_CTRL_FALSE;
+    else {
+        std::cout << "[warn] cannot send invalid jv landing mode: " << mode << std::endl;
+        return false;
+    }
+
+    // Construct JSON object
+    QJsonObject object {
+        {"snd", "pc"},
+        {"dst", "jv"},
+        {"typ", "land"},
+        {"land", modeInt},
+        {"rsp", rspStr},
+    };
+
+    QJsonDocument jsonDoc = QJsonDocument(object);
+    QByteArray jsonBytes = jsonDoc.toJson(QJsonDocument::Compact); // Compact representation
+    return socket->writeDatagram(jsonBytes, IP_ADDR_ESP, PORT_ESP) != -1;
+
+}
+
+bool Transmitter::sendJvQuit()
+{
+
+    // Construct JSON object
+    QJsonObject object {
+        {"snd", "pc"},
+        {"dst", "jv"},
+        {"typ", "quit"}
     };
 
     QJsonDocument jsonDoc = QJsonDocument(object);
@@ -400,9 +539,6 @@ void Transmitter::readUDP()
 
 void Transmitter::parsePacket(QByteArray &data)
 {
-
-    // std::cout << data.toStdString() << std::endl;
-
     // Convert the byte array into a json document
     QJsonDocument document = QJsonDocument::fromJson(data);
     // Check it is a valid json packet
@@ -419,7 +555,7 @@ void Transmitter::parsePacket(QByteArray &data)
 
         // If the type is a 'mode' message
         if(object["typ"] == "mode") {
-            parseMode(object);
+            parseEspMode(object);
         }
 
         else if(object["typ"] == "msp") {
@@ -431,11 +567,31 @@ void Transmitter::parsePacket(QByteArray &data)
 
         else if(object["typ"] == "ping") {
             parsePing(object);
+
+        }
+
+        else if(object["typ"] == "log") {
+            parseLog(object, 0);
+        }
+    }
+
+    else if(object["snd"] == "jv") {
+
+        if(object["typ"] == "log") {
+            parseLog(object, 1);
+        }
+
+        else if(object["typ"] == "mode") {
+            parseJvController(object);
+        }
+
+        else if(object["typ"] == "land") {
+            parseJvLanding(object);
         }
     }
 }
 
-void Transmitter::parseMode(QJsonObject mode_obj)
+void Transmitter::parseEspMode(QJsonObject mode_obj)
 {
     if(mode_obj["mode"] == "pc") {updateCurrentEspMode(MODE_PC);}
     else if(mode_obj["mode"] == "jv") {updateCurrentEspMode(MODE_JV);}
@@ -486,6 +642,32 @@ void Transmitter::parsePing(QJsonObject ping_obj)
         emit pingReceived(pingLoopTime);
     }
 }
+
+void Transmitter::parseLog(QJsonObject log_obj, int dev)
+{
+
+    // Get the round-trip time for the ping
+    if(log_obj.contains("log") && log_obj.contains("lvl")) {
+
+        emit logReceived(dev, log_obj["log"].toString(), log_obj["lvl"].toInt());
+    }
+}
+
+void Transmitter::parseJvController(QJsonObject mode_obj)
+{
+    if(mode_obj["mode"].toInt() == JV_CTRL_TRUE) {updateCurrentJvController(JV_CTRL_TRUE);}
+    else if(mode_obj["mode"].toInt() == JV_CTRL_FALSE) {updateCurrentJvController(JV_CTRL_FALSE);}
+    else {updateCurrentJvController(JV_CTRL_ERR);}
+}
+
+
+void Transmitter::parseJvLanding(QJsonObject land_obj)
+{
+    if(land_obj["land"].toInt() == JV_LAND_TRUE) {updateCurrentJvLanding(JV_LAND_TRUE);}
+    else if(land_obj["land"].toInt() == JV_LAND_FALSE) {updateCurrentJvLanding(JV_LAND_FALSE);}
+    else {updateCurrentJvLanding(JV_LAND_ERR);}
+}
+
 
 // *********************************************************
 // Files

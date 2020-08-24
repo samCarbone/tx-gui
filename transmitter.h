@@ -49,6 +49,9 @@ public:
     bool getControllerActive();
     Q_PROPERTY(bool controllerActive READ getControllerActive NOTIFY controllerActiveChanged);
 
+    // Landing mode
+    Q_INVOKABLE void setDesiredJvLanding(const int newMode);
+
     // Comms
     Q_INVOKABLE bool sendChannelsWithMode(); //
     Q_INVOKABLE bool sendPing(const bool response=true); //
@@ -79,8 +82,14 @@ signals:
     void espModeChanged(const int mode); //
     void desiredEspModeChanged(const int mode); //
     void controllerActiveChanged(const bool ctrlActv);
+    void jvControllerChanged(const int mode);
+    void jvLandingChanged(const int mode);
+    void desiredJvControllerChanged(const int mode);
+    void desiredJvLandingChanged(const int mode);
+
     // Comms
     void pingReceived(int pingLoopTime); //
+    void logReceived(int device, QString logText, int logLevel);
     // State
     void altRangeReceived(int timeEsp_ms, int range); //
     void altStateEstimate(int timeEsp_ms, double z, double z_dot); //
@@ -111,18 +120,43 @@ private:
     const int MODE_ERR = 0;
     int currentEspMode;
     int desiredEspMode;
+    bool armed = false;
     bool txTransmit = false;
     bool controllerStandby = false;
     bool controllerActive = false;
     const int SET_MODE_CHANNEL = 5; // Channel which operates the esp mode
+    const int SET_ARM_CHANNEL = 4; // Channel which sets the FC arm
     void updateCurrentEspMode(const int newMode); //
     void setDesiredEspMode(const int newMode); //
     void setModeFromChannel(const int channel, const double value); //
     void setControllerActive(const bool ctrlActv);
 
+    // Jevois states
+    const int JV_CTRL_TRUE = 1;
+    const int JV_CTRL_FALSE = 2;
+    const int JV_CTRL_ERR = 0;
+    int current_jvController = JV_CTRL_ERR;
+    int desired_jvController = JV_CTRL_FALSE;
+    void updateCurrentJvController(const int newMode);
+    void setDesiredJvController(const int newMode);
+    bool sendJvController(const int mode, const bool response=true);
+    void parseJvController(QJsonObject mode_obj);
+
+    bool sendJvQuit();
+
+    const int JV_LAND_TRUE = 1;
+    const int JV_LAND_FALSE = 2;
+    const int JV_LAND_ERR = 0;
+    int current_jvLanding = JV_LAND_ERR;
+    int desired_jvLanding = JV_LAND_FALSE;
+    void updateCurrentJvLanding(const int newMode);
+    bool sendJvLanding(const int mode, const bool response=true);
+    void parseJvLanding(QJsonObject land_obj);
+
+
     // Comms
     QUdpSocket *socket;
-    const QHostAddress IP_ADDR_ESP = QHostAddress("192.168.15.11");
+    const QHostAddress IP_ADDR_ESP = QHostAddress("192.168.15.23");
     const int PORT_ESP = 123;
     const int PING_TIMEOUT = 100;
     const int SEND_CONTROL_PERIOD_MS = 50; // ms, time between sending control commansd
@@ -134,9 +168,11 @@ private:
     bool sendChannels(const std::array<double, 16> &channels, const bool response=false); //
     bool sendEspMode(const int mode, const bool response=true); //
     void parsePacket(QByteArray &data); //
-    void parseMode(QJsonObject mode_obj); //
+    void parseEspMode(QJsonObject mode_obj); //
     void parsePing(QJsonObject ping_obj); //
     void parseAltitude(QJsonObject alt_obj); //
+    void parseLog(QJsonObject log_obj, int dev); //
+
 
     // Control system
     std::array<double, 4> controllerChannels = {0, 0, 0, 0};

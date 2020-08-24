@@ -1,6 +1,6 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
-import QtQuick.Controls 2.0
+import QtQuick.Controls 2.15
 import QtGamepad 1.12
 import QtQuick.Layouts 1.12
 
@@ -28,7 +28,7 @@ ApplicationWindow {
             height: implicitHeight
         }
         TabButton {
-            text: qsTr("Discover")
+            text: qsTr("Logging")
             padding: 5
             width: implicitWidth
             height: implicitHeight
@@ -60,6 +60,7 @@ ApplicationWindow {
 
         Item {
             id: activityTab
+            SecondPage {width: parent.width/2; height: parent.height/2}
         }
 
         Item {
@@ -153,7 +154,7 @@ ApplicationWindow {
 
                 Text {
                     id: textActiveCtrl
-                    text: "Alt Controller"
+                    text: "PC Alt Controller"
                     width: contentWidth + 16
                     height: contentHeight
                     leftPadding: 5
@@ -181,6 +182,111 @@ ApplicationWindow {
                     ]
                 }
 
+            }
+
+            Item {
+                width: textJVCtrl.width + rectJVCtrl.width + 5
+                height: rectJVCtrl.height
+
+                Text {
+                    id: textJVCtrl
+                    text: "JV Alt Controller"
+                    width: contentWidth + 16
+                    height: contentHeight
+                    leftPadding: 5
+                }
+
+                Rectangle {
+                    // Green if active, red if inactive
+                    id: rectJVCtrl
+                    state: "error"
+                    height: textJVCtrl.height*1.2
+                    width: height
+                    radius: 1
+                    anchors.right: textJVCtrl.left
+                    anchors.verticalCenter: textJVCtrl.verticalCenter
+
+                    states: [
+                        State {
+                            name: "enabled"
+                            PropertyChanges { target: rectJVCtrl; color: "seagreen"}
+                        },
+                        State {
+                            name: "disabled"
+                            PropertyChanges { target: rectJVCtrl; color: "tomato"}
+                        },
+                        State {
+                            name: "error"
+                            PropertyChanges { target: rectJVCtrl; color: "lightgrey"}
+                        }
+                    ]
+                }
+
+            }
+
+
+
+            Item {
+                width: textJVLand.width + rectJVLand.width + 5
+                height: rectJVLand.height
+
+                Text {
+                    id: textJVLand
+                    text: "JV Landing"
+                    width: contentWidth + 16
+                    height: contentHeight
+                    leftPadding: 5
+                }
+
+                Rectangle {
+                    // Green if active, red if inactive
+                    id: rectJVLand
+                    state: "error"
+                    height: textJVLand.height*1.2
+                    width: height
+                    radius: 1
+                    anchors.right: textJVLand.left
+                    anchors.verticalCenter: textJVLand.verticalCenter
+
+                    states: [
+                        State {
+                            name: "enabled"
+                            PropertyChanges { target: rectJVLand; color: "seagreen"}
+                        },
+                        State {
+                            name: "disabled"
+                            PropertyChanges { target: rectJVLand; color: "tomato"}
+                        },
+                        State {
+                            name: "error"
+                            PropertyChanges { target: rectJVLand; color: "lightgrey"}
+                        }
+                    ]
+                }
+
+            }
+
+
+
+
+            ColorButton_no {
+                id: landButton
+                textEnabled: qsTr("Land")
+                textDisabled: qsTr("Land")
+                colorEnabled: "seagreen"
+                colorDisabled: "tomato"
+                state: "inactive"
+
+                onClicked: {
+                    if(state != "inactive") {
+                        if(state === "disabled") {
+                            Transmitter.setDesiredJvLanding(1);
+                        }
+                        else if(state === "enabled") {
+                            Transmitter.setDesiredJvLanding(2);
+                        }
+                    }
+                }
             }
 
         }
@@ -273,6 +379,72 @@ ApplicationWindow {
     Connections {
         target: Transmitter
         function onControllerActiveChanged(isActive) { rectActiveCtrl.state = isActive ? "enabled" : "disabled" }
+    }
+
+    Connections {
+        target: Transmitter
+        function onJvControllerChanged(ctrl_mode) {
+            if(ctrl_mode === 0) {
+                rectJVCtrl.state = "error";
+            }
+            else if(ctrl_mode === 1) {
+                rectJVCtrl.state = "enabled";
+            }
+            else if(ctrl_mode === 2) {
+                rectJVCtrl.state = "disabled";
+            }
+        }
+    }
+
+    Connections {
+        target: Transmitter
+        function onJvLandingChanged(land_mode) {
+            if(land_mode === 0) {
+                rectJVLand.state = "error";
+            }
+            else if(land_mode === 1) {
+                rectJVLand.state = "enabled";
+            }
+            else if(land_mode === 2) {
+                rectJVLand.state = "disabled";
+            }
+        }
+    }
+
+    Connections {
+        target: Transmitter
+        function onDesiredJvControllerChanged(ctrl_mode) {
+            if(ctrl_mode === 0) {
+                landButton.state = "inactive";
+            }
+            else if(ctrl_mode === 1) {
+                if(landButton.state === "inactive") {
+                    landButton.state = "disabled";
+                }
+            }
+            else if(ctrl_mode === 2) {
+                landButton.state = "inactive";
+            }
+        }
+    }
+
+    Connections {
+        target: Transmitter
+        function onDesiredJvLandingChanged(land_mode) {
+            if(land_mode === 0) {
+                if(landButton.state != "inactive") {
+                    landButton.state = "disabled";
+                }
+            }
+            else if(land_mode === 1) {
+                landButton.state = "enabled";
+            }
+            else if(land_mode === 2) {
+                if(landButton.state != "inactive") {
+                    landButton.state = "disabled";
+                }
+            }
+        }
     }
 
 }

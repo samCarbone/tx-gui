@@ -6,5 +6,7 @@
         <file>ColorButton.qml</file>
         <file>TextBoxCompare.qml</file>
         <file>FirstPage.qml</file>
+        <file>SecondPage.qml</file>
+        <file>ColorButton_no.qml</file>
     </qresource>
 </RCC>

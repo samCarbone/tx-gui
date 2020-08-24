@@ -3,7 +3,7 @@ import QtQuick 2.12
 import QtCharts 2.12
 import QtQuick.Dialogs 1.2
 import QtQuick.Layouts 1.12
-import QtQuick.Controls 2.0
+import QtQuick.Controls 2.15
 
 
 Item {
@@ -11,13 +11,18 @@ Item {
     id: page
 
     ChartView {
-        title: "Scatters"
+        title: "Altitude"
         antialiasing: true
         anchors.top: parent.top
         anchors.left: parent.left
-        height: parent.height
+        height: parent.height/2
         width: parent.width/2
         id: chartAltitude
+        legend.alignment: Qt.AlignRight
+        margins.bottom: 0
+        margins.left: 10
+        margins.top: 0
+        margins.right: 0
 
         ScatterSeries {
             id: scatterRangeMeas
@@ -76,13 +81,20 @@ Item {
     }
 
     ChartView {
-        title: "Scatters Velocity"
+        title: "Velocity"
         antialiasing: true
-        anchors.top: parent.top
-        anchors.right: parent.right
-        height: parent.height
+        anchors.top: chartAltitude.bottom
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        // height: parent.height
         width: parent.width/2
         id: chartVelocity
+        legend.alignment: Qt.AlignRight
+        margins.bottom: 0
+        margins.left: 10
+        margins.top: 0
+        margins.right: 0
+
 
         ScatterSeries {
             id: scatterVelEst
@@ -286,6 +298,8 @@ Item {
             }
 
     }
+
+
 
     function isValidSuffix(inText) {
         var invalidChars = ["/", "<", ">", ":", "\"", "\\", "|", "?", "*"];

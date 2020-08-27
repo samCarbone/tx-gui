@@ -373,6 +373,7 @@ HEADERS += \
     eigen/Eigen/src/plugins/MatrixCwiseBinaryOps.h \
     eigen/Eigen/src/plugins/MatrixCwiseUnaryOps.h \
     eigen/Eigen/src/plugins/ReshapedMethods.h \
+    my_enums.h \
     transmitter.h
 
 DISTFILES += \

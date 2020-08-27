@@ -52,7 +52,6 @@ double AltitudeController::getControl()
 {
     if(validStateSet) {
         double u = (B*Dx)(0,0) + thrSS;
-        return u;
 
         if(filesOpen) {
             // header
@@ -61,6 +60,8 @@ double AltitudeController::getControl()
                           << u << "," << B(0,0)*Dx(0,0) << "," << B(0,1)*Dx(1,0) << "," << B(0,2)*Dx(2,0) << "," << thrSS << ","
                           << B(0,0) << "," << B(0,1) << "," << B(0,2) << std::endl;
         }
+
+        return u;
 
     }
 

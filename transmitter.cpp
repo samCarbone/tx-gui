@@ -261,7 +261,7 @@ void Transmitter::updateCurrentJvLanding(const char newMode)
 void Transmitter::setDesiredJvLanding(const char newMode)
 {
     desired_jvLanding = newMode;
-    desiredJvLandingChanged(desired_jvLanding);
+    emit desiredJvLandingChanged(desired_jvLanding);
 }
 
 

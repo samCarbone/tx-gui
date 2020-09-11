@@ -6,7 +6,8 @@ Item {
     id: root
 
     enum LogLevels { ALL, DEBUG, INFO, WARN, ERROR, FATAL, OFF }
-    enum Devices { ESP, JV }
+    // enum Devices { PC, ESP, JV }
+    enum Devices { PC, JV, ESP, FC }
 
     ScrollView {
         anchors.fill: parent

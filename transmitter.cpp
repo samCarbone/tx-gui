@@ -98,7 +98,11 @@ void Transmitter::setJoyChannelValue(const int channel, double value)
         // std::cout << "[warn] channel value out of range (lower)" << std::endl;
     }
 
-    joyChannels.at(channel) = value;
+    // Make sure the mode switch does not change the channel (5) value
+    if(channel != SET_MODE_CHANNEL) {
+        joyChannels.at(channel) = value;
+    }
+
     setModeFromChannel(channel, value);
     emit joyChannelChanged(channel, value);
 
@@ -230,13 +234,17 @@ bool Transmitter::getControllerActive()
 
 void Transmitter::setControllerActive(const bool ctrlActv)
 {
-    controllerActive = ctrlActv;
-    altController->resetState();
+    if(ctrlActv != controllerActive) {
+        controllerActive = ctrlActv;
+        altController->resetState();
 
-    // Make a better way of setting this
-    AltTarget_t targetTemp; targetTemp.z = -0.5; targetTemp.z_dot = 0;
-    altController->setTarget(targetTemp);
-    emit controllerActiveChanged(ctrlActv);
+        if(ctrlActv) {
+            // Make a better way of setting the target
+            AltTarget_t targetTemp; targetTemp.z = -0.5; targetTemp.z_dot = 0;
+            altController->setTarget(targetTemp);
+        }
+        emit controllerActiveChanged(ctrlActv);
+    }
 }
 
 void Transmitter::updateCurrentJvController(const char newMode)
@@ -295,31 +303,21 @@ bool Transmitter::sendChannelsWithMode()
         if(desiredEspMode == ESP_MODE_PC) {
             double chnThr, chnEle, chnAil, chnRud;
 
-            if(controllerStandby) {
             // Calculate propagated state
-                AltState_t propAltState = altEstimator->getPropagatedStateEstimate_safe(timerPc.elapsed()+pingLoopTime, PING_LIMIT);
+            long int current_pc_time_ms = timerPc.elapsed();
+            AltState_t propAltState = altEstimator->getPropagatedStateEstimate_safe(current_pc_time_ms+pingLoopTime, PING_LIMIT);
 
-                if(controllerActive) {
+            if(controllerStandby  && controllerActive) {
 
-                    controllerChannels.at(2) = saturate(altController->getControlTempState(propAltState));
+                controllerChannels.at(2) = saturate(altController->getControlTempState(propAltState));
 
-                    std::array<double, 16> mixedChannels = joyChannels;
-                    mixedChannels.at(2) = controllerChannels.at(2);
-                    success &= sendChannels(mixedChannels, false);
-                    emit controllerChannelChanged(2, mixedChannels.at(2));
+                std::array<double, 16> mixedChannels = joyChannels;
+                mixedChannels.at(2) = controllerChannels.at(2);
+                success &= sendChannels(mixedChannels, false);
+                emit controllerChannelChanged(2, mixedChannels.at(2));
 
-                    chnThr = mixedChannels.at(2); chnEle = mixedChannels.at(1);
-                    chnAil = mixedChannels.at(0); chnRud = mixedChannels.at(3);
-                }
-
-                if(filesOpen) {
-                    // header
-                    // "time_esp_ms,time_esp_prop,Delta_t_prop_ms,z_prop,z_dot_prop,chnThr,chnEle,chnAil,chnRud"
-                    file_log << altEstimator->getCurrentTimeEsp_ms() << "," << propAltState.timeEsp_ms << "," << propAltState.timeEsp_ms-altEstimator->getCurrentTimeEsp_ms() << ","
-                             << propAltState.z << "," << propAltState.z_dot << "," << chnThr << "," << chnEle << "," << chnAil << "," << chnRud << std::endl;
-                }
-                emit altPropStateEstimate((int)propAltState.timeEsp_ms, propAltState.z, propAltState.z_dot);
-
+                chnThr = mixedChannels.at(2); chnEle = mixedChannels.at(1);
+                chnAil = mixedChannels.at(0); chnRud = mixedChannels.at(3);
             }
             else {
                 success &= sendChannels(joyChannels, false);
@@ -327,6 +325,13 @@ bool Transmitter::sendChannelsWithMode()
                 chnAil = joyChannels.at(0); chnRud = joyChannels.at(3);
             }
 
+            if(filesOpen) {
+                // header
+                // "time_esp_ms,time_esp_prop,Delta_t_prop_ms,time_pc_ms,z_prop,z_dot_prop,chnThr,chnEle,chnAil,chnRud"
+                file_log << altEstimator->getCurrentTimeEsp_ms() << "," << propAltState.timeEsp_ms << "," << propAltState.timeEsp_ms-altEstimator->getCurrentTimeEsp_ms() << ","
+                         << current_pc_time_ms << propAltState.z << "," << propAltState.z_dot << "," << chnThr << "," << chnEle << "," << chnAil << "," << chnRud << std::endl;
+            }
+            emit altPropStateEstimate((int)propAltState.timeEsp_ms, propAltState.z, propAltState.z_dot);
 
         }
 

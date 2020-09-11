@@ -10,6 +10,10 @@ Item {
 
     id: page
 
+    enum LogLevels { ALL, DEBUG, INFO, WARN, ERROR, FATAL, OFF }
+    // enum Devices { PC, ESP, JV }
+    enum Devices { PC, JV, ESP, FC }
+
     ChartView {
         title: "Altitude"
         antialiasing: true
@@ -139,6 +143,27 @@ Item {
     }
 
 
+    ScrollView {
+        // anchors.fill: parent
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.verticalCenter
+        anchors.left: parent.horizontalCenter
+        TextArea {
+
+            id: logTextArea
+            readOnly: true
+            background: Rectangle {
+                height: parent.height
+                width: parent.width
+                color: "ghostwhite"
+                border.color: "darkgrey"
+            }
+
+        }
+    }
+
+
     Button {
         id: selectFolderButton
         anchors.horizontalCenter: fileSaveGrid.horizontalCenter
@@ -196,7 +221,7 @@ Item {
         padding: 5
 
         anchors.right: parent.right
-        anchors.top: parent.top
+        y: parent.height/2+50
         rightPadding: 10
         bottomPadding: 10
 
@@ -433,6 +458,29 @@ Item {
     Connections {
         target: Transmitter
         function onPingReceived(pingLoopTime) { ping.text = pingLoopTime; }
+    }
+
+
+    Connections {
+        target: Transmitter
+        function onLogReceived(dev, logStr, level) {
+            var dev_str = "[]";
+            if(dev === SecondPage.Devices.ESP) { dev_str = "[ESP]"; }
+            else if(dev === SecondPage.Devices.JV) { dev_str = "[JV] "; }
+
+            var lvl_str = "[]";
+            if(level === SecondPage.LogLevels.ALL) { lvl_str = "[ALL] "; }
+            else if(level === SecondPage.LogLevels.DEBUG) { lvl_str = "[DEBUG] "; }
+            else if(level === SecondPage.LogLevels.INFO) { lvl_str = "[INFO] "; }
+            else if(level === SecondPage.LogLevels.WARN) { lvl_str = "[WARN] "; }
+            else if(level === SecondPage.LogLevels.ERROR) { lvl_str = "[ERROR] "; }
+            else if(level === SecondPage.LogLevels.FATAL) { lvl_str = "[FATAL] "; }
+            else if(level === SecondPage.LogLevels.OFF) { lvl_str = "[OFF] "; }
+
+            var cat_str = dev_str + lvl_str + logStr + "\n";
+
+            logTextArea.insert(logTextArea.length, cat_str);
+        }
     }
 
 }

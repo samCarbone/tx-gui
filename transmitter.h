@@ -108,7 +108,8 @@ private:
     int joystickID = 0;
 
     // Channels
-    std::array<double, 16> joyChannels = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    // 0->ail, 1->ele, 2->thr, 3->rud, 4->arm
+    std::array<double, 16> joyChannels = {0, 0, 0, 0, 0, -100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     static constexpr double MAX_CHANNEL_VALUE = 100;
     static constexpr double MIN_CHANNEL_VALUE = -100;
     static constexpr unsigned char MSP_CHANNEL_ID = 200;
@@ -184,7 +185,7 @@ private:
     // Files
     std::ofstream file_log;
     bool filesOpen = false;
-    std::string header_log = "time_esp_ms,time_esp_prop,Delta_t_prop_ms,z_prop,z_dot_prop,chnThr,chnEle,chnAil,chnRud";
+    std::string header_log = "time_esp_ms,time_esp_prop,Delta_t_prop_ms,time_pc_ms,z_prop,z_dot_prop,chnThr,chnEle,chnAil,chnRud";
     std::string prefix_log = "alt_prop_ctrl_";
     std::string format = ".txt";
     std::string suffix = "temp";

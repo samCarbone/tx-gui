@@ -60,7 +60,7 @@ ApplicationWindow {
 
         Item {
             id: activityTab
-            SecondPage {width: parent.width/2; height: parent.height/2}
+            // SecondPage {width: parent.width/2; height: parent.height/2}
         }
 
         Item {

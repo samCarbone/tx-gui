@@ -362,9 +362,10 @@ Item {
             scatterRangeMeas.append(timeEsp_ms/1000, range);
             scatterRangeMeas.numPoints += 1;
 
-            if(scatterRangeMeas.numPoints > 500) {
-                scatterRangeMeas.remove(0);
-                scatterRangeMeas.numPoints -= 1;
+            if(scatterRangeMeas.numPoints > 300) {
+//                scatterRangeMeas.remove(0)
+                scatterRangeMeas.removePoints(0, 50);
+                scatterRangeMeas.numPoints -= 50;
             }
 
         }
@@ -400,13 +401,15 @@ Item {
             scatterVelEst.append(timeEsp_ms/1000, range_dot);
             scatterVelEst.numPoints += 1;
 
-            if(scatterAltEst.numPoints > 500) {
-                scatterAltEst.remove(0);
-                scatterAltEst.numPoints -= 1;
+            if(scatterAltEst.numPoints > 300) {
+//                scatterAltEst.remove(0);
+                scatterAltEst.removePoints(0, 50);
+                scatterAltEst.numPoints -= 50;
             }
-            if(scatterVelEst.numPoints > 500) {
-                scatterVelEst.remove(0);
-                scatterVelEst.numPoints -= 1;
+            if(scatterVelEst.numPoints > 300) {
+//                scatterVelEst.remove(0);
+                scatterVelEst.removePoints(0,50);
+                scatterVelEst.numPoints -= 50;
             }
 
         }
@@ -443,13 +446,15 @@ Item {
             scatterVelPropEst.append(timeEsp_ms/1000, range_dot);
             scatterVelPropEst.numPoints += 1;
 
-            if(scatterAltPropEst.numPoints > 500) {
-                scatterAltPropEst.remove(0);
-                scatterAltPropEst.numPoints -= 1;
+            if(scatterAltPropEst.numPoints > 300) {
+//                scatterAltPropEst.remove(0);
+                scatterAltPropEst.removePoints(0,50);
+                scatterAltPropEst.numPoints -= 50;
             }
-            if(scatterVelPropEst.numPoints > 500) {
-                scatterVelPropEst.remove(0);
-                scatterVelPropEst.numPoints -= 1;
+            if(scatterVelPropEst.numPoints > 300) {
+//                scatterVelPropEst.remove(0);
+                scatterVelPropEst.removePoints(0,50);
+                scatterVelPropEst.numPoints -= 50;
             }
 
         }

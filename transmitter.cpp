@@ -329,12 +329,13 @@ bool Transmitter::sendChannelsWithMode()
                 // header
                 // "time_esp_ms,time_esp_prop,Delta_t_prop_ms,time_pc_ms,z_prop,z_dot_prop,chnThr,chnEle,chnAil,chnRud"
                 file_log << altEstimator->getCurrentTimeEsp_ms() << "," << propAltState.timeEsp_ms << "," << propAltState.timeEsp_ms-altEstimator->getCurrentTimeEsp_ms() << ","
-                         << current_pc_time_ms << propAltState.z << "," << propAltState.z_dot << "," << chnThr << "," << chnEle << "," << chnAil << "," << chnRud << std::endl;
+                         << current_pc_time_ms << "," << propAltState.z << "," << propAltState.z_dot << "," << chnThr << "," << chnEle << "," << chnAil << "," << chnRud << std::endl;
             }
             emit altPropStateEstimate((int)propAltState.timeEsp_ms, propAltState.z, propAltState.z_dot);
 
         }
 
+#ifndef NO_JV
         if(current_jvController != desired_jvController) {
             success &= sendJvController(desired_jvController, true);
         }
@@ -342,6 +343,7 @@ bool Transmitter::sendChannelsWithMode()
         if(current_jvLanding != desired_jvLanding) {
             success &= sendJvLanding(desired_jvLanding, true);
         }
+#endif
 
     }
     return success;

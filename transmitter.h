@@ -22,6 +22,8 @@
 #include "altitudecontroller.h"
 #include "my_enums.h"
 
+//#define NO_JV
+
 class Transmitter : public QObject
 {
     Q_OBJECT

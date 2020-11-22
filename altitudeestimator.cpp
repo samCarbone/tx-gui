@@ -88,7 +88,7 @@ void AltitudeEstimator::addRangeMeasurement(RangingData_t rangeData)
 
     // File writes
     if(filesOpen) {
-        // header
+        // header // TODO: change to 'Delta_t'
         // time_esp_ms,time_pc_ms,z,z_dot,P_11,P_12,P_21,P_22,Delta_t_ms,sigma_v,range_mm,sigma_mm,signal_rate,ambient_rate,eff_spad_count,status
         file_alt_est << currentTimeEsp_ms << "," << currentTimePc_ms << "," << x(0,0) << "," << x(1,0) << ","
                      << P(0,0) << "," << P(0,1) << "," << P(1,0) << "," << P(1,1) << "," << Delta_t << "," << sigma_v << ","

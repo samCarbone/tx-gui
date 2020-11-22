@@ -38,9 +38,10 @@ private:
     // Attributes
     long int currentTimePc_ms;
     long int currentTimeEsp_ms;
-    Eigen::Matrix<double, 2, 1> x; // [z (mm), z_dot (mm/ms)]
+    Eigen::Matrix<double, 2, 1> x; // [z (m), z_dot (m/s)]
     Eigen::Matrix<double, 2, 2> P;
-    double sigma_v = 100; // mm/s, process uncertainty in velocity
+    // double sigma_v = 100; // mm/s, process uncertainty in velocity // WRONG, should be in m/s
+    double sigma_v = 0.5; // m/s, process uncertainty in velocity
     bool hasPreviousMeasurement = false;
 
     // File save attributes

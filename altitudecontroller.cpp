@@ -3,7 +3,7 @@
 AltitudeController::AltitudeController()
 {
     resetState();
-    B(0,0) = -10.178; B(0,1) = -4.36569; B(0,2) = -1.76181; // [P D I]
+    B(0,0) = P; B(0,1) = D; B(0,2) = I; // [P D I]
 
 }
 
